@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Cat — Visualiseur Musical Immersif</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #010104;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+        }
+        #visualizer-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        .demo-control-panel {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+        }
+        .demo-btn {
+            background: rgba(20, 16, 40, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            padding: 8px 18px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .demo-btn:hover {
+            background: rgba(45, 35, 80, 0.9);
+            border-color: rgba(0, 240, 255, 0.6);
+            color: #00f0ff;
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.3);
+        }
+        .demo-btn.active {
+            background: rgba(0, 240, 255, 0.25);
+            border-color: rgba(0, 240, 255, 0.8);
+            color: #00f0ff;
+        }
+        .audio-file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="visualizer-container" class="cosmic-cat-wrapper hud-active">
+        <canvas id="cosmic-canvas" class="cosmic-cat-canvas"></canvas>
+
+        <div class="demo-control-panel">
+            <button id="btn-toggle-play" class="demo-btn active">
+                <span>▶ Pause / Play</span>
+            </button>
+            <button id="btn-mic" class="demo-btn">
+                <span>🎤 Micro Live</span>
+            </button>
+            <label class="demo-btn" for="audio-file">
+                <span>📁 Charger Musique</span>
+            </label>
+            <input type="file" id="audio-file" class="audio-file-input" accept="audio/*">
+            <button id="btn-fullscreen" class="demo-btn">
+                <span>⛶ Plein Écran</span>
+            </button>
+        </div>
+
+        <div class="cosmic-hud">
+            <div class="cosmic-header">
+                <div class="cosmic-title-badge">
+                    <svg class="cosmic-logo-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C9.5 2 7.4 3.8 7 6.2 4.6 7.8 3 10.7 3 14c0 5 4 9 9 9s9-4 9-9c0-3.3-1.6-6.2-4-7.8C16.6 3.8 14.5 2 12 2zm-3.2 1.8l1.6 2.4c-.6.4-1.1.9-1.4 1.5L6.5 6.6l2.3-2.8zm6.4 0l2.3 2.8-2.5 1.1c-.3-.6-.8-1.1-1.4-1.5l1.6-2.4z"/>
+                    </svg>
+                    <span class="cosmic-title-text">Cosmic Cat Visualizer</span>
+                </div>
+            </div>
+
+            <div class="cosmic-footer">
+                <div class="cosmic-track-card">
+                    <div style="width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, #7928ca, #ff0080); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(121, 40, 202, 0.4);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    </div>
+                    <div class="cosmic-track-details">
+                        <span id="track-name" class="cosmic-track-name">Cosmic Resonance (Mode Automatique Temps Réel)</span>
+                        <span id="artist-name" class="cosmic-artist-name">128 BPM • Fractales Cosmiques, Particules Rapides & Deck Compact</span>
+                    </div>
+                </div>
+
+                <div class="cosmic-theme-pills">
+                    <button class="cosmic-theme-pill active" data-theme="aurora">Aurora</button>
+                    <button class="cosmic-theme-pill" data-theme="nebula">Nebula</button>
+                    <button class="cosmic-theme-pill" data-theme="solar">Solar</button>
+                    <button class="cosmic-theme-pill" data-theme="cyber">Cyber</button>
+                    <button class="cosmic-theme-pill" data-theme="emerald">Emerald</button>
+                    <button class="cosmic-theme-pill" data-theme="twilight">Twilight</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="WoodenDeck.js"></script>
+    <script src="CosmicFractals.js"></script>
+    <script src="CatGeometry.js"></script>
+    <script src="TailPhysics.js"></script>
+    <script src="ColorPalettes.js"></script>
+    <script src="CosmicEnvironment.js"></script>
+    <script src="AudioAnalysisEngine.js"></script>
+    <script src="VisualizerEngine.js"></script>
+
+    <script>
+        const canvas = document.getElementById("cosmic-canvas");
+        const container = document.getElementById("visualizer-container");
+        const engine = new VisualizerEngine(canvas, {
+            theme: "aurora",
+            sensitivity: 1.1,
+            shockwavePower: 1.2
+        });
+
+        engine.start();
+
+        let isPlaying = true;
+        let audioElement = null;
+
+        document.querySelectorAll(".cosmic-theme-pill").forEach(pill => {
+            pill.addEventListener("click", () => {
+                document.querySelectorAll(".cosmic-theme-pill").forEach(p => p.classList.remove("active"));
+                pill.classList.add("active");
+                engine.palette.setTheme(pill.dataset.theme);
+            });
+        });
+
+        document.getElementById("btn-toggle-play").addEventListener("click", (e) => {
+            isPlaying = !isPlaying;
+            e.currentTarget.classList.toggle("active", isPlaying);
+            if (audioElement) {
+                if (isPlaying) audioElement.play();
+                else audioElement.pause();
+            }
+        });
+
+        document.getElementById("btn-fullscreen").addEventListener("click", () => {
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        document.getElementById("btn-mic").addEventListener("click", async (e) => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                engine.audio.connectAudioSource(stream);
+                e.currentTarget.classList.add("active");
+                document.getElementById("track-name").textContent = "Microphone Live Stream";
+                document.getElementById("artist-name").textContent = "Audio FFT Temps Réel";
+            } catch (err) {
+                alert("Accès microphone refusé ou non disponible.");
+            }
+        });
+
+        document.getElementById("audio-file").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.remove();
+                }
+                audioElement = new Audio(URL.createObjectURL(file));
+                audioElement.play();
+                isPlaying = true;
+                document.getElementById("btn-toggle-play").classList.add("active");
+                engine.audio.connectAudioSource(audioElement);
+                document.getElementById("track-name").textContent = file.name;
+                document.getElementById("artist-name").textContent = "Fichier Local Audio";
+            }
+        });
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "f" || e.key === "F" || e.key === "v" || e.key === "V") {
+                if (!document.fullscreenElement) container.requestFullscreen().catch(() => {});
+                else document.exitFullscreen().catch(() => {});
+            } else if (e.code === "Space") {
+                document.getElementById("btn-toggle-play").click();
+            }
+        });
+
+        window.addEventListener("resize", () => engine.resize());
+
+        let fakeProgress = 0;
+        setInterval(() => {
+            if (isPlaying) {
+                fakeProgress += 80;
+                if (!audioElement && !engine.audio.isLiveAudioActive) {
+                    engine.updateSpotifyState("sample", fakeProgress, isPlaying, 1.0);
+                }
+            }
+        }, 80);
+    </script>
+</body>
+</html>
