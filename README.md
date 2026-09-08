@@ -1,4 +1,4 @@
-# 🌌 Cosmic Cat — Visualiseur Musical Immersif (Canvas 2D & Spicetify)
+# 🌌 Cosmic Cat : Visualiseur Musical Immersif (Canvas 2D & Spicetify)
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-00f0ff?style=for-the-badge&logo=github)](https://erozah.github.io/cosmic-cat-visualizer/)
 [![Canvas](https://img.shields.io/badge/Render-Canvas_2D_60FPS-blueviolet?style=for-the-badge)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
