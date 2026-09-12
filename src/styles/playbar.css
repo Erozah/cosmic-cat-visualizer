@@ -1,64 +1,44 @@
-/* src/styles/playbar.css - Playbar toggle button & Spotify toast overrides */
+/* src/styles/playbar.css - Playbar buttons styling as in legacy */
 
-#cyber-cat-playbar-btn {
+#cosmic-cat-playbar-btn,
+#cosmic-cat-theme-btn {
+    transition: all 0.2s ease !important;
     position: relative !important;
+    cursor: pointer !important;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 4px !important;
+    color: var(--spice-subtext, rgba(255, 255, 255, 0.7)) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 32px !important;
-    height: 32px !important;
-    background: transparent !important;
-    border: 0 !important;
-    padding: 0 !important;
-    margin: 0 4px !important;
-    cursor: pointer !important;
-    border-radius: 50% !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    z-index: 9999 !important;
-    color: #00f0ff !important;
 }
 
-#cyber-cat-playbar-btn:hover {
-    transform: scale(1.15) !important;
-    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.8)) !important;
+#cosmic-cat-playbar-btn.active,
+#cosmic-cat-theme-btn:hover {
+    transform: scale(1.1) !important;
+    filter: drop-shadow(0 0 6px currentColor) !important;
 }
 
-#cyber-cat-playbar-btn.deactivated {
-    color: #777777 !important;
-    filter: none !important;
+#cosmic-cat-playbar-btn:not(.active) {
+    opacity: 0.6 !important;
 }
 
-/* Toast & Error Notification Stacking Fix */
+/* Toast & Notification Stacking Fix */
 .notistack-SnackbarContainer {
     z-index: 99999999 !important;
 }
 
 .notistack-SnackbarContainer .notistack-Snackbar,
 .notistack-SnackbarContainer [class*="Snackbar"],
-.notistack-SnackbarContainer .encore-light-theme,
-.notistack-SnackbarContainer .encore-dark-theme,
-.notistack-SnackbarContainer [class*="e-91000-box"],
 .main-notificationBubble-notificationBubble,
 .Root__notification-bar,
 [data-testid="toast-box"],
 div[role="alert"],
 div[role="status"] {
     background: rgba(18, 14, 32, 0.96) !important;
-    background-color: rgba(18, 14, 32, 0.96) !important;
     color: #ffffff !important;
     border: 1px solid rgba(0, 240, 255, 0.4) !important;
     border-radius: 8px !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 240, 255, 0.2) !important;
-}
-
-.notistack-SnackbarContainer *,
-.main-notificationBubble-notificationBubble *,
-.Root__notification-bar *,
-[data-testid="toast-box"] *,
-div[role="alert"] * {
-    color: #ffffff !important;
-    --text-base: #ffffff !important;
-    --encore-internal-color-text-base: #ffffff !important;
-    --background-elevated-base: rgba(18, 14, 32, 0.96) !important;
-    --background-base: rgba(18, 14, 32, 0.96) !important;
 }

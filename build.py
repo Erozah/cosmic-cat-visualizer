@@ -24,7 +24,6 @@ CSS_MODULES = [
     "styles/canvas.css",
     "styles/transparency.css",
     "styles/mainView.css",
-    "styles/controlBar.css",
     "styles/hud.css",
     "styles/fullscreen.css",
     "styles/playbar.css",
@@ -87,10 +86,9 @@ JS_MODULES = [
     "core/renderPipeline.js",
     "core/VisualizerEngine.js",
 
-    # 7. UI Components & Extension Bootstrap
+    # 7. UI Components & Extension Bootstrap (Legacy Buttons & HUD)
     "ui/canvasMount.js",
-    "ui/controlBar.js",
-    "ui/playbarButton.js",
+    "ui/playbarButtons.js",
     "ui/themeHud.js",
     "ui/extension.js",
 ]

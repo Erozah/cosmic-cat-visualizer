@@ -1,4 +1,4 @@
-// src/core/panelBounds.js - Full viewport canvas sizing & central cat placement
+// src/core/panelBounds.js - Viewport canvas sizing & natural central placement (L25)
 
 function syncPanelBounds(engine) {
     if (!engine.canvas) return;
@@ -17,23 +17,7 @@ function syncPanelBounds(engine) {
         engine.env.resize(engine.width, engine.height);
     }
 
-    // Measure the central main-view area between the sidebars
-    const mainView = document.querySelector('.Root__main-view') || document.querySelector('main');
-    if (mainView) {
-        const rect = mainView.getBoundingClientRect();
-        if (rect.width > 20 && rect.height > 20) {
-            engine.catCenterX = rect.left + rect.width * 0.5;
-            engine.catCenterY = rect.top + rect.height * 0.52;
-
-            // Align floating control bar with central area
-            const bar = document.getElementById('cyber-cat-control-bar');
-            if (bar) {
-                bar.style.left = `${Math.round(rect.left + rect.width * 0.5)}px`;
-            }
-            return;
-        }
-    }
-
+    // Direct natural centering across the full viewport
     engine.catCenterX = engine.width * 0.5;
     engine.catCenterY = engine.height * 0.52;
 }
@@ -47,13 +31,5 @@ function setupResizeHandling(engine) {
     };
 
     window.addEventListener('resize', handleResize, { passive: true });
-
-    const mainView = document.querySelector('.Root__main-view') || document.querySelector('main');
-    if (typeof ResizeObserver !== 'undefined' && mainView) {
-        const ro = new ResizeObserver(() => handleResize());
-        ro.observe(mainView);
-        engine.ro = ro;
-    }
-
     handleResize();
 }

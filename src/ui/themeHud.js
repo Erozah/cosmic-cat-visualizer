@@ -1,75 +1,72 @@
-// src/ui/themeHud.js - Floating HUD pill with model, background, theme swatches, and power button
+// src/ui/themeHud.js - Floating Theme Selector HUD as in legacy
 
 function mountThemeHud(engineGetter) {
-    if (document.getElementById('cyber-cat-hud')) return;
+    let hud = document.getElementById("cosmic-cat-theme-hud");
+    if (hud) return hud;
 
-    const hud = document.createElement('div');
-    hud.id = 'cyber-cat-hud';
-    hud.className = 'cyber-cat-hud-pill';
+    hud = document.createElement("div");
+    hud.id = "cosmic-cat-theme-hud";
 
-    // 1. Cat model switcher button
-    const catBtn = document.createElement('button');
-    catBtn.id = 'hud-cat-btn';
-    catBtn.className = 'hud-text-btn';
-    catBtn.title = 'Changer de modèle (C): Cyber Cat / Cosmic Cat';
-    catBtn.innerHTML = `<span class="hud-title"><svg viewBox="0 0 24 24" width="12" height="12" fill="#00f0ff"><circle cx="12" cy="12" r="8"/></svg> Cyber Cat</span>`;
-    catBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    const updateHudContent = () => {
         const eng = engineGetter();
-        if (eng) eng.nextCat();
-    });
+        const curPalette = eng ? eng.paletteManager.active : VisualizerPalettes.cyberpunk;
+        const palettes = VisualizerPalettes;
 
-    // 2. Background switcher button
-    const bgBtn = document.createElement('button');
-    bgBtn.id = 'hud-bg-btn';
-    bgBtn.className = 'hud-text-btn';
-    bgBtn.title = 'Changer de fond (G): Étoiles / Grille / Fractales / Minimal';
-    bgBtn.innerHTML = `<span>✨ Fond</span>`;
-    bgBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const eng = engineGetter();
-        if (eng) eng.nextBackground();
-    });
+        let swatchesHtml = "";
+        for (const key of Object.keys(palettes)) {
+            const p = palettes[key];
+            const isActive = curPalette.id === p.id;
+            swatchesHtml += `<button type="button" class="theme-swatch ${isActive ? 'active' : ''}" data-theme="${p.id}" style="background-color: ${p.primary}; color: ${p.primary};" title="${p.name}"></button>`;
+        }
 
-    // 3. Theme color swatches
-    const swatches = document.createElement('div');
-    swatches.className = 'hud-swatches';
+        hud.innerHTML = `
+            <div class="hud-title" title="Cliquez pour changer de couleur (Raccourci: T)">
+                <span class="hud-icon">🔮</span>
+                <span class="hud-name">${curPalette.name}</span>
+            </div>
+            <div class="hud-swatches">
+                ${swatchesHtml}
+            </div>
+        `;
 
-    const palettes = VisualizerPalettes;
-    Object.keys(palettes).forEach(key => {
-        const p = palettes[key];
-        const swatch = document.createElement('button');
-        swatch.className = 'theme-swatch' + (key === 'cyberpunk' ? ' active' : '');
-        swatch.setAttribute('data-palette', key);
-        swatch.title = p.name;
-        swatch.style.background = `linear-gradient(135deg, ${p.primary}, ${p.accent})`;
-        swatch.style.color = p.primary;
-
-        swatch.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const eng = engineGetter();
-            if (eng) eng.setPalette(key);
+        hud.querySelectorAll(".theme-swatch").forEach(sw => {
+            sw.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const themeKey = sw.getAttribute("data-theme");
+                const engInst = engineGetter();
+                if (engInst && themeKey) engInst.setPalette(themeKey);
+            });
         });
 
-        swatches.appendChild(swatch);
-    });
+        const titleEl = hud.querySelector(".hud-title");
+        if (titleEl) {
+            titleEl.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const engInst = engineGetter();
+                if (engInst) engInst.nextPalette();
+            });
+        }
+    };
 
-    // 4. Power/Freeze toggle button
-    const powerBtn = document.createElement('button');
-    powerBtn.id = 'hud-power-btn';
-    powerBtn.className = 'hud-action-btn';
-    powerBtn.title = 'Activer au premier plan / Figer en arrière-plan (A)';
-    powerBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>`;
-    powerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const eng = engineGetter();
-        if (eng) eng.toggleActive();
-    });
-
-    hud.appendChild(catBtn);
-    hud.appendChild(bgBtn);
-    hud.appendChild(swatches);
-    hud.appendChild(powerBtn);
-
+    updateHudContent();
     document.body.appendChild(hud);
+    return hud;
+}
+
+function updateHudThemeSwatch(activePaletteId) {
+    const hud = document.getElementById("cosmic-cat-theme-hud");
+    if (!hud) return;
+
+    const cur = VisualizerPalettes[activePaletteId];
+    const nameEl = hud.querySelector(".hud-name");
+    if (nameEl && cur) {
+        nameEl.textContent = cur.name;
+    }
+
+    hud.querySelectorAll(".theme-swatch").forEach(sw => {
+        const key = sw.getAttribute("data-theme");
+        sw.classList.toggle("active", key === activePaletteId);
+    });
 }
