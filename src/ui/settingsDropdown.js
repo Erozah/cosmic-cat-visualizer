@@ -16,11 +16,14 @@ function toggleSettingsDropdown(engineGetter) {
 }
 
 function openSettingsDropdown(engineGetter) {
+    const eng = engineGetter();
+    if (!eng || !eng.isForeground) return;
+
     if (!settingsDropdownEl) {
         settingsDropdownEl = mountSettingsDropdown(engineGetter);
     }
 
-    updateSettingsDropdownUI(engineGetter());
+    updateSettingsDropdownUI(eng);
     settingsDropdownEl.classList.add("open");
 
     // Position above settings button if possible

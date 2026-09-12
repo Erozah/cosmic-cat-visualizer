@@ -1,8 +1,9 @@
-/* src/styles/mainView.css - Dynamic central view visibility & transparency */
+/* src/styles/mainView.css - Dynamic central view visibility & transparency (Active ONLY when visualizer is ON) */
 
-.Root__main-view,
-main,
-.main-view-container {
+/* 1. VISUALIZER ACTIVE: Central Spotify page content hidden to free the cat */
+body.cyber-cat-visualizer-active .Root__main-view,
+body.cyber-cat-visualizer-active main,
+body.cyber-cat-visualizer-active .main-view-container {
     background: transparent !important;
     background-color: transparent !important;
     box-shadow: none !important;
@@ -10,7 +11,6 @@ main,
     border-radius: 0 !important;
 }
 
-/* 1. VISUALIZER ACTIVE: Central Spotify page content hidden to free the cat */
 body.cyber-cat-visualizer-active .Root__main-view .main-view-container__scroll-node,
 body.cyber-cat-visualizer-active .Root__main-view .main-view-container__scroll-node-child,
 body.cyber-cat-visualizer-active .Root__main-view .os-viewport,
@@ -27,19 +27,4 @@ body.cyber-cat-visualizer-active .Root__main-view .main-gridContainer-gridContai
     pointer-events: none !important;
     visibility: hidden !important;
     transition: opacity 0.25s ease, visibility 0.25s ease !important;
-}
-
-/* 2. VISUALIZER INACTIVE / FROZEN: Central Spotify page visible for regular browsing */
-body:not(.cyber-cat-visualizer-active) .Root__main-view {
-    background: rgba(16, 14, 26, 0.75) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-}
-
-body:not(.cyber-cat-visualizer-active) .Root__main-view .main-view-container__scroll-node,
-body:not(.cyber-cat-visualizer-active) .Root__main-view .main-view-container__scroll-node-child,
-body:not(.cyber-cat-visualizer-active) .Root__main-view .os-viewport {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    visibility: visible !important;
 }

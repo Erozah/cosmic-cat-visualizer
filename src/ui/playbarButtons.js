@@ -41,6 +41,8 @@ function mountPlaybarButtons(engineGetter) {
             settingsBtn.className = "main-genericButton-button cosmic-playbar-btn";
             settingsBtn.setAttribute("aria-label", "Paramètres du Visualiseur");
             settingsBtn.innerHTML = GearSvg;
+            const eng = engineGetter();
+            settingsBtn.style.display = (eng && eng.isForeground) ? "inline-flex" : "none";
 
             settingsBtn.addEventListener("click", (e) => {
                 e.preventDefault();

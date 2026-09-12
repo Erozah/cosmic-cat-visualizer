@@ -1,6 +1,6 @@
-/* src/styles/transparency.css - Spotify UI transparency and glassmorphic panels */
+/* src/styles/transparency.css - Spotify UI transparency and glassmorphic panels (Active ONLY when visualizer is ON) */
 
-:root, html, body {
+body.cyber-cat-visualizer-active {
     --spice-main: transparent !important;
     --spice-sidebar: transparent !important;
     --spice-player: transparent !important;
@@ -8,8 +8,8 @@
     --spice-main-elevated: rgba(255, 255, 255, 0.04) !important;
 }
 
-#main,
-.Root__top-container {
+body.cyber-cat-visualizer-active #main,
+body.cyber-cat-visualizer-active .Root__top-container {
     position: relative !important;
     z-index: 1 !important;
     background: transparent !important;
@@ -17,20 +17,20 @@
 }
 
 /* Left Sidebar - Full Transparency */
-.Root__nav-bar,
-#Desktop_LeftSidebar_Id,
-.main-yourLibraryX-navBar,
-.main-yourLibraryX-library,
-.main-yourLibraryX-libraryContainer,
-.main-yourLibraryX-header,
-.main-yourLibraryX-listContent,
-.main-yourLibraryX-isScrolled,
-.main-rootlist-rootlist,
-.main-rootlist-wrapper,
-.main-navBar-mainNav,
-.main-navBar-navBar,
-.YourLibraryX,
-.main-yourLibraryX-entryPoints {
+body.cyber-cat-visualizer-active .Root__nav-bar,
+body.cyber-cat-visualizer-active #Desktop_LeftSidebar_Id,
+body.cyber-cat-visualizer-active .main-yourLibraryX-navBar,
+body.cyber-cat-visualizer-active .main-yourLibraryX-library,
+body.cyber-cat-visualizer-active .main-yourLibraryX-libraryContainer,
+body.cyber-cat-visualizer-active .main-yourLibraryX-header,
+body.cyber-cat-visualizer-active .main-yourLibraryX-listContent,
+body.cyber-cat-visualizer-active .main-yourLibraryX-isScrolled,
+body.cyber-cat-visualizer-active .main-rootlist-rootlist,
+body.cyber-cat-visualizer-active .main-rootlist-wrapper,
+body.cyber-cat-visualizer-active .main-navBar-mainNav,
+body.cyber-cat-visualizer-active .main-navBar-navBar,
+body.cyber-cat-visualizer-active .YourLibraryX,
+body.cyber-cat-visualizer-active .main-yourLibraryX-entryPoints {
     background: transparent !important;
     background-color: transparent !important;
     backdrop-filter: none !important;
@@ -40,16 +40,16 @@
 }
 
 /* Right Sidebar - Full Transparency */
-.Root__right-sidebar,
-.main-nowPlayingView-container,
-.main-nowPlayingView-content,
-.main-nowPlayingView-nowPlayingWidget,
-.main-nowPlayingView-section,
-.main-buddyFeed-container,
-.main-buddyFeed-content,
-.main-nowPlayingWidget-nowPlaying,
-.main-trackInfo-container,
-.main-trackInfo-trackInfo {
+body.cyber-cat-visualizer-active .Root__right-sidebar,
+body.cyber-cat-visualizer-active .main-nowPlayingView-container,
+body.cyber-cat-visualizer-active .main-nowPlayingView-content,
+body.cyber-cat-visualizer-active .main-nowPlayingView-nowPlayingWidget,
+body.cyber-cat-visualizer-active .main-nowPlayingView-section,
+body.cyber-cat-visualizer-active .main-buddyFeed-container,
+body.cyber-cat-visualizer-active .main-buddyFeed-content,
+body.cyber-cat-visualizer-active .main-nowPlayingWidget-nowPlaying,
+body.cyber-cat-visualizer-active .main-trackInfo-container,
+body.cyber-cat-visualizer-active .main-trackInfo-trackInfo {
     background: transparent !important;
     background-color: transparent !important;
     backdrop-filter: none !important;
@@ -59,12 +59,12 @@
 }
 
 /* Top Navigation Bar - Full Transparency */
-.Root__top-bar,
-.Root__globalNav,
-.main-topBar-container,
-.main-topBar-background,
-.main-topBar-overlay,
-.main-topBar-historyButtons {
+body.cyber-cat-visualizer-active .Root__top-bar,
+body.cyber-cat-visualizer-active .Root__globalNav,
+body.cyber-cat-visualizer-active .main-topBar-container,
+body.cyber-cat-visualizer-active .main-topBar-background,
+body.cyber-cat-visualizer-active .main-topBar-overlay,
+body.cyber-cat-visualizer-active .main-topBar-historyButtons {
     background: transparent !important;
     background-color: transparent !important;
     backdrop-filter: none !important;
@@ -74,9 +74,9 @@
 }
 
 /* Bottom Player Bar - Full Transparency */
-.Root__now-playing-bar,
-.main-nowPlayingBar-container,
-.main-nowPlayingBar-nowPlayingBar {
+body.cyber-cat-visualizer-active .Root__now-playing-bar,
+body.cyber-cat-visualizer-active .main-nowPlayingBar-container,
+body.cyber-cat-visualizer-active .main-nowPlayingBar-nowPlayingBar {
     background: transparent !important;
     background-color: transparent !important;
     backdrop-filter: none !important;
@@ -86,10 +86,10 @@
 }
 
 /* Typography & Icon Readability Over Live Canvas */
-.Root__nav-bar button,
-.Root__nav-bar a,
-.Root__nav-bar span,
-.Root__now-playing-bar button,
-.Root__now-playing-bar span {
+body.cyber-cat-visualizer-active .Root__nav-bar button,
+body.cyber-cat-visualizer-active .Root__nav-bar a,
+body.cyber-cat-visualizer-active .Root__nav-bar span,
+body.cyber-cat-visualizer-active .Root__now-playing-bar button,
+body.cyber-cat-visualizer-active .Root__now-playing-bar span {
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
 }

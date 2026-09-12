@@ -17,9 +17,10 @@ function updateVisualizerUI(engine) {
         }
     }
 
-    // 2. Bouton Paramètres ⚙️
+    // 2. Bouton Paramètres ⚙️ (Masqué si le visualiseur est inactif)
     const settingsBtn = document.getElementById("cosmic-cat-settings-btn");
     if (settingsBtn) {
+        settingsBtn.style.display = engine.isForeground ? "inline-flex" : "none";
         settingsBtn.style.color = engine.isForeground ? curPalette.primary : "var(--spice-subtext, rgba(255,255,255,0.6))";
         settingsBtn.title = "Paramètres du Visualiseur (Modèle, Thème, Effets)";
     }

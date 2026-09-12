@@ -207,10 +207,21 @@
             const toggleBtn = document.getElementById('cosmic-cat-toggle-btn');
             const settingsBtn = document.getElementById('cosmic-cat-settings-btn');
 
-            toggleBtn.addEventListener('click', () => {
-                engine.toggleActive();
+            function syncStandaloneUI() {
                 toggleBtn.classList.toggle('active', engine.isActive);
                 toggleBtn.classList.toggle('inactive', !engine.isActive);
+                settingsBtn.style.display = engine.isActive ? 'inline-flex' : 'none';
+            }
+
+            // On standalone demo page, start active by default (frozen on resting pose until audio plays)
+            if (!engine.isActive) {
+                engine.toggleActive(true);
+            }
+            syncStandaloneUI();
+
+            toggleBtn.addEventListener('click', () => {
+                engine.toggleActive();
+                syncStandaloneUI();
             });
 
             settingsBtn.addEventListener('click', () => {
@@ -237,6 +248,8 @@
 
                 // Connect to visualizer engine
                 engine.audio.connectLiveSource(synthContext.destination);
+                engine.audio.isPlaying = true;
+                engine.unfreeze();
 
                 let step = 0;
                 const tempo = 124;
@@ -300,6 +313,10 @@
                 synthInterval = null;
                 isSynthRunning = false;
                 document.getElementById('btn-synth').classList.remove('active');
+                if (engine) {
+                    engine.audio.isPlaying = false;
+                    engine.freeze();
+                }
             }
 
             document.getElementById('btn-synth').addEventListener('click', startSynth);
@@ -309,6 +326,8 @@
                     stopSynth();
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     engine.audio.connectLiveSource(stream);
+                    engine.audio.isPlaying = true;
+                    engine.unfreeze();
                     document.getElementById('btn-mic').classList.add('active');
                 } catch (err) {
                     alert("Accès microphone non accordé : " + err.message);
@@ -322,8 +341,22 @@
                 if (!file) return;
                 stopSynth();
                 const audioEl = new Audio(URL.createObjectURL(file));
+                audioEl.onplay = () => {
+                    engine.audio.isPlaying = true;
+                    engine.unfreeze();
+                };
+                audioEl.onpause = () => {
+                    engine.audio.isPlaying = false;
+                    engine.freeze();
+                };
+                audioEl.onended = () => {
+                    engine.audio.isPlaying = false;
+                    engine.freeze();
+                };
                 audioEl.play();
                 engine.audio.connectLiveSource(audioEl);
+                engine.audio.isPlaying = true;
+                engine.unfreeze();
                 document.getElementById('btn-file').classList.add('active');
             });
         });

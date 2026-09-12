@@ -40,6 +40,8 @@ function renderVisualizerFrame(engine, dt, isStatic = false) {
 
     if (!isStatic && model.update) {
         model.update(dt, engine.liveTime, engine.audio, engine.catCenterX, engine.catCenterY, engine.width, engine.height, engine.audio.isPlaying);
+    } else if (isStatic && model.update && !model.lastDeformedParams) {
+        model.update(0.016, engine.liveTime, engine.audio, engine.catCenterX, engine.catCenterY, engine.width, engine.height, false);
     }
 
     model.render(

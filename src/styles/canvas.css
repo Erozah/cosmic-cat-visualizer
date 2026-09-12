@@ -8,8 +8,12 @@
     height: 100vh !important;
     z-index: 0 !important;
     pointer-events: none !important;
-    display: block !important;
+    display: none !important;
     background: transparent !important;
+}
+
+body.cyber-cat-visualizer-active #cyber-cat-canvas {
+    display: block !important;
 }
 
 body.cyber-cat-fullscreen-active #cyber-cat-canvas {

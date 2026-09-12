@@ -30,10 +30,10 @@ class VisualizerEngine {
         }
 
         // State: Active vs Frozen/Paused
-        const savedActive = (typeof localStorage !== 'undefined') ? localStorage.getItem('cosmic-cat-bg-enabled') !== 'false' : true;
+        const savedActive = (typeof localStorage !== 'undefined') ? localStorage.getItem('cosmic-cat-bg-enabled') === 'true' : false;
         this.isForeground = savedActive;
-        this.isFrozen = !savedActive;
-        this.loopRunning = savedActive;
+        this.isFrozen = true;
+        this.loopRunning = false;
         this.isFullscreen = false;
 
         this.liveTime = 0;
@@ -48,14 +48,53 @@ class VisualizerEngine {
             document.body.classList.toggle('cyber-cat-visualizer-active', this.isForeground);
         }
 
+        if (this.canvas) {
+            this.canvas.style.display = this.isForeground ? 'block' : 'none';
+        }
+
         setupResizeHandling(this);
         setupVisualizerKeybindings(this);
 
+        // Spotify player hook: freeze when music is paused, unfreeze when playing
+        if (typeof Spicetify !== "undefined" && Spicetify.Player) {
+            Spicetify.Player.addEventListener("onplaypause", () => {
+                const playing = Spicetify.Player.isPlaying();
+                this.audio.isPlaying = playing;
+                if (this.isForeground) {
+                    if (playing) {
+                        this.unfreeze();
+                    } else {
+                        this.freeze();
+                    }
+                }
+            });
+        }
+
         this.loop = this.loop.bind(this);
-        if (this.loopRunning) {
+        if (this.isForeground) {
+            const isPlaying = this.audio && this.audio.isPlaying;
+            if (isPlaying) {
+                this.unfreeze();
+            } else {
+                this.freeze();
+            }
+        }
+    }
+
+    freeze() {
+        if (!this.isForeground) return;
+        this.isFrozen = true;
+        this.loopRunning = false;
+        this.renderFrame(0.016, true);
+    }
+
+    unfreeze() {
+        if (!this.isForeground) return;
+        this.isFrozen = false;
+        if (!this.loopRunning) {
+            this.loopRunning = true;
+            this.lastFrameTime = performance.now();
             requestAnimationFrame(this.loop);
-        } else {
-            this.renderFrame(0.016, true);
         }
     }
 
@@ -66,7 +105,6 @@ class VisualizerEngine {
     toggleActive(forceState) {
         const nextActive = typeof forceState === 'boolean' ? forceState : !this.isForeground;
         this.isForeground = nextActive;
-        this.isFrozen = !nextActive;
 
         if (typeof localStorage !== 'undefined') {
             localStorage.setItem('cosmic-cat-bg-enabled', this.isForeground ? 'true' : 'false');
@@ -77,14 +115,27 @@ class VisualizerEngine {
         }
 
         if (this.isForeground) {
-            if (!this.loopRunning) {
-                this.loopRunning = true;
-                this.lastFrameTime = performance.now();
-                requestAnimationFrame(this.loop);
+            // ON: show canvas and resume/freeze depending on playback state
+            if (this.canvas) {
+                this.canvas.style.display = 'block';
+            }
+            const isPlaying = this.audio && this.audio.isPlaying;
+            if (isPlaying) {
+                this.unfreeze();
+            } else {
+                this.freeze();
             }
         } else {
-            this.renderFrame(0.016, true);
+            // OFF: completely hide canvas, clear canvas pixels and stop loop
             this.loopRunning = false;
+            this.isFrozen = true;
+            if (this.canvas) {
+                this.canvas.style.display = 'none';
+            }
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (typeof closeSettingsDropdown === 'function') {
+                closeSettingsDropdown();
+            }
         }
 
         this.updateAllUI();
@@ -114,7 +165,7 @@ class VisualizerEngine {
                 localStorage.setItem('cosmic-cat-model', cat);
             }
             this.updateAllUI();
-            if (this.isFrozen) this.renderFrame(0.016, true);
+            if (this.isForeground && this.isFrozen) this.renderFrame(0.016, true);
         }
         return this.activeCat;
     }
@@ -132,7 +183,7 @@ class VisualizerEngine {
             localStorage.setItem('cosmic-cat-theme', id);
         }
         this.updateAllUI();
-        if (this.isFrozen) this.renderFrame(0.016, true);
+        if (this.isForeground && this.isFrozen) this.renderFrame(0.016, true);
     }
 
     nextPalette() {
@@ -141,7 +192,7 @@ class VisualizerEngine {
             localStorage.setItem('cosmic-cat-theme', p.id);
         }
         this.updateAllUI();
-        if (this.isFrozen) this.renderFrame(0.016, true);
+        if (this.isForeground && this.isFrozen) this.renderFrame(0.016, true);
         return p;
     }
 
@@ -149,14 +200,14 @@ class VisualizerEngine {
     toggleEffect(name) {
         const res = this.env.toggleEffect(name);
         this.updateAllUI();
-        if (this.isFrozen) this.renderFrame(0.016, true);
+        if (this.isForeground && this.isFrozen) this.renderFrame(0.016, true);
         return res;
     }
 
     setEffect(name, enabled) {
         const res = this.env.setEffect(name, enabled);
         this.updateAllUI();
-        if (this.isFrozen) this.renderFrame(0.016, true);
+        if (this.isForeground && this.isFrozen) this.renderFrame(0.016, true);
         return res;
     }
 
@@ -177,6 +228,17 @@ class VisualizerEngine {
     }
 
     loop(now) {
+        if (!this.isForeground) {
+            this.loopRunning = false;
+            return;
+        }
+
+        // When visualizer is active but music is paused, freeze animation (0% CPU)
+        if (this.audio && !this.audio.isPlaying) {
+            this.freeze();
+            return;
+        }
+
         try {
             const dt = Math.min(0.1, (now - this.lastFrameTime) / 1000) || 0.016;
             this.lastFrameTime = now;
@@ -192,7 +254,7 @@ class VisualizerEngine {
         } catch (err) {
             console.error('[VisualizerEngine] Loop error:', err);
         } finally {
-            if (this.loopRunning && !this.isFrozen) {
+            if (this.loopRunning && !this.isFrozen && this.isForeground) {
                 requestAnimationFrame(this.loop);
             }
         }
