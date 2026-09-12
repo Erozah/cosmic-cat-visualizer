@@ -17,7 +17,7 @@ class BackgroundManager {
             nebula: true,       // Nébuleuse atmosphérique volumétrique
             shockwaves: true,   // Ondes de choc radiales sur le beat
             grid: false,        // Grille synthwave 3D en perspective
-            deck: true          // Plateforme deck en bois (Cosmic Cat)
+            deck: true          // Plateforme deck en bois (sol)
         };
 
         this.loadSettings();

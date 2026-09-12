@@ -4,7 +4,6 @@ class CosmicCat {
     constructor() {
         this.geometry = new CatGeometry();
         this.tail = new TailPhysics(20);
-        this.deck = new WoodenDeck();
         this.lastDeformedParams = null;
         this.lastScale = 1.0;
         this.lastDeckY = 0;
@@ -44,12 +43,6 @@ class CosmicCat {
         const w = width || window.innerWidth || 800;
         const h = height || window.innerHeight || 600;
         const deckY = this.lastDeckY || (h * 0.86);
-
-        // 1. Render wooden deck unless disabled or on cyber synthwave grid
-        const showDeck = (!effects || effects.deck !== false) && (!effects || !effects.grid);
-        if (showDeck) {
-            this.deck.render(ctx, w, h, deckY, palette, audio);
-        }
 
         const catWidth = Math.min(270, Math.min(w * 0.32, h * 0.44)) * (scale || 1.0);
         const catHeight = catWidth * 1.35;

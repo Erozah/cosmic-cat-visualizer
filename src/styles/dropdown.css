@@ -1,5 +1,10 @@
 /* src/styles/dropdown.css - Glassmorphic settings dropdown panel & toggles */
 
+#cosmic-cat-settings-dropdown,
+#cosmic-cat-settings-dropdown * {
+    box-sizing: border-box !important;
+}
+
 #cosmic-cat-settings-dropdown {
     position: fixed !important;
     z-index: 99999999 !important;
@@ -94,12 +99,14 @@
     padding: 8px 10px !important;
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    justify-content: center !important;
+    gap: 6px !important;
     cursor: pointer !important;
-    text-align: left !important;
+    text-align: center !important;
     color: #ffffff !important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     outline: none !important;
+    white-space: nowrap !important;
 }
 
 .model-btn:hover {
@@ -115,13 +122,9 @@
 }
 
 .model-icon {
-    font-size: 20px !important;
-}
-
-.model-info {
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
 }
 
 .model-name {
@@ -132,14 +135,6 @@
 
 .model-btn.active .model-name {
     color: #00f0ff !important;
-}
-
-.model-desc {
-    font-size: 9px !important;
-    color: rgba(255, 255, 255, 0.5) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
 }
 
 /* Palette Swatches Row (Exclusive) */

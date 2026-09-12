@@ -64,17 +64,11 @@ function mountSettingsDropdown(engineGetter) {
             <div class="model-selector-grid">
                 <button type="button" class="model-btn" data-model="cyber">
                     <span class="model-icon">🐱</span>
-                    <div class="model-info">
-                        <span class="model-name">Cyber Cat</span>
-                        <span class="model-desc">De face • Yeux animés • Constellation</span>
-                    </div>
+                    <span class="model-name">Cyber Cat</span>
                 </button>
                 <button type="button" class="model-btn" data-model="cosmic">
                     <span class="model-icon">🌌</span>
-                    <div class="model-info">
-                        <span class="model-name">Cosmic Cat</span>
-                        <span class="model-desc">De dos • Queue articulée • Deck</span>
-                    </div>
+                    <span class="model-name">Cosmic Cat</span>
                 </button>
             </div>
         </div>

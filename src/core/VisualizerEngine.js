@@ -11,6 +11,7 @@ class VisualizerEngine {
         this.audio = new AudioEngine();
         this.env = new BackgroundManager();
         this.cosmicFractals = new CosmicFractals();
+        this.woodenDeck = new WoodenDeck();
 
         // Polymorphic Model Registry (SOLID OCP / LSP)
         this.models = {

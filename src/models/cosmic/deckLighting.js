@@ -1,11 +1,11 @@
 // src/models/cosmic/deckLighting.js - Wooden deck rim light, reflection, and contact shadow
 
-function renderDeckLighting(ctx, width, height, deckY, palette, audioState) {
+function renderDeckLighting(ctx, width, height, deckY, palette, audioState, centerX = null) {
     const deckHeight = height - deckY;
     const bass = audioState.bass || 0;
     const beat = audioState.beatImpulse || 0;
     const energy = audioState.energy || 0.5;
-    const cx = width * 0.5;
+    const cx = centerX !== null ? centerX : width * 0.5;
 
     // 1. Deck Horizon Rim Light
     ctx.save();
