@@ -1,0 +1,109 @@
+/* src/styles/hud.css - Floating theme selector HUD and color swatches */
+
+#cyber-cat-hud {
+    position: fixed !important;
+    top: 16px !important;
+    right: 80px !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    background: rgba(12, 10, 26, 0.88) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 20px !important;
+    padding: 6px 12px !important;
+    gap: 8px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    user-select: none !important;
+}
+
+#cyber-cat-hud:hover {
+    background: rgba(18, 14, 36, 0.96) !important;
+    border-color: rgba(0, 240, 255, 0.5) !important;
+    box-shadow: 0 4px 24px rgba(0, 240, 255, 0.25) !important;
+}
+
+#cyber-cat-hud .hud-text-btn {
+    background: transparent !important;
+    border: 0 !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 2px 6px !important;
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+}
+
+#cyber-cat-hud .hud-text-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #00f0ff !important;
+}
+
+#cyber-cat-hud .hud-action-btn {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 50% !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #00f0ff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    margin-left: 2px !important;
+}
+
+#cyber-cat-hud .hud-action-btn:hover {
+    border-color: #00f0ff !important;
+    transform: scale(1.15) !important;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.5) !important;
+}
+
+#cyber-cat-hud .hud-title {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
+    color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    white-space: nowrap !important;
+}
+
+#cyber-cat-hud .hud-swatches {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-left: 4px !important;
+}
+
+#cyber-cat-hud .theme-swatch {
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    outline: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#cyber-cat-hud .theme-swatch:hover {
+    transform: scale(1.35) !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 10px currentColor !important;
+}
+
+#cyber-cat-hud .theme-swatch.active {
+    transform: scale(1.3) !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 12px currentColor, 0 0 4px #ffffff !important;
+}

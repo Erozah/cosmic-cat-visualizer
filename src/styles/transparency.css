@@ -1,0 +1,95 @@
+/* src/styles/transparency.css - Spotify UI transparency and glassmorphic panels */
+
+:root, html, body {
+    --spice-main: transparent !important;
+    --spice-sidebar: transparent !important;
+    --spice-player: transparent !important;
+    --spice-card: rgba(255, 255, 255, 0.04) !important;
+    --spice-main-elevated: rgba(255, 255, 255, 0.04) !important;
+}
+
+#main,
+.Root__top-container {
+    position: relative !important;
+    z-index: 1 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* Left Sidebar - Full Transparency */
+.Root__nav-bar,
+#Desktop_LeftSidebar_Id,
+.main-yourLibraryX-navBar,
+.main-yourLibraryX-library,
+.main-yourLibraryX-libraryContainer,
+.main-yourLibraryX-header,
+.main-yourLibraryX-listContent,
+.main-yourLibraryX-isScrolled,
+.main-rootlist-rootlist,
+.main-rootlist-wrapper,
+.main-navBar-mainNav,
+.main-navBar-navBar,
+.YourLibraryX,
+.main-yourLibraryX-entryPoints {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+/* Right Sidebar - Full Transparency */
+.Root__right-sidebar,
+.main-nowPlayingView-container,
+.main-nowPlayingView-content,
+.main-nowPlayingView-nowPlayingWidget,
+.main-nowPlayingView-section,
+.main-buddyFeed-container,
+.main-buddyFeed-content,
+.main-nowPlayingWidget-nowPlaying,
+.main-trackInfo-container,
+.main-trackInfo-trackInfo {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+/* Top Navigation Bar - Full Transparency */
+.Root__top-bar,
+.Root__globalNav,
+.main-topBar-container,
+.main-topBar-background,
+.main-topBar-overlay,
+.main-topBar-historyButtons {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+/* Bottom Player Bar - Full Transparency */
+.Root__now-playing-bar,
+.main-nowPlayingBar-container,
+.main-nowPlayingBar-nowPlayingBar {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+/* Typography & Icon Readability Over Live Canvas */
+.Root__nav-bar button,
+.Root__nav-bar a,
+.Root__nav-bar span,
+.Root__now-playing-bar button,
+.Root__now-playing-bar span {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
+}

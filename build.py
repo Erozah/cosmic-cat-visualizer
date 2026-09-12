@@ -1,114 +1,154 @@
 import os
 import shutil
+import json
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 HOME = os.path.expanduser("~")
-CONFIG_APP_DEST = os.path.join(HOME, ".config/spicetify/CustomApps/cat-visualizer")
-SPICE_APP_DEST = os.path.join(HOME, ".spicetify/CustomApps/cat-visualizer")
 CONFIG_EXT_DEST = os.path.join(HOME, ".config/spicetify/Extensions")
 SPICE_EXT_DEST = os.path.join(HOME, ".spicetify/Extensions")
 
-for d in [CONFIG_APP_DEST, SPICE_APP_DEST, CONFIG_EXT_DEST, SPICE_EXT_DEST]:
+for d in [CONFIG_EXT_DEST, SPICE_EXT_DEST]:
     os.makedirs(d, exist_ok=True)
 
-files_to_copy = [
-    "manifest.json",
-    "index.js",
-    "style.css",
-    "extension.js",
-    "WoodenDeck.js",
-    "CosmicFractals.js",
-    "CatGeometry.js",
-    "TailPhysics.js",
-    "ColorPalettes.js",
-    "CosmicEnvironment.js",
-    "AudioAnalysisEngine.js",
-    "VisualizerEngine.js"
+SRC_DIR = os.path.join(PROJECT_DIR, "src")
+
+def read_src(subpath):
+    filepath = os.path.join(SRC_DIR, subpath)
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Source file not found: {filepath}")
+    with open(filepath, "r", encoding="utf-8") as f:
+        return f.read()
+
+CSS_MODULES = [
+    "styles/root.css",
+    "styles/canvas.css",
+    "styles/transparency.css",
+    "styles/mainView.css",
+    "styles/controlBar.css",
+    "styles/hud.css",
+    "styles/fullscreen.css",
+    "styles/playbar.css",
 ]
 
-for f in files_to_copy:
-    src = os.path.join(PROJECT_DIR, f)
-    shutil.copy2(src, os.path.join(CONFIG_APP_DEST, f))
-    shutil.copy2(src, os.path.join(SPICE_APP_DEST, f))
-    print(f"Copied {f}")
+JS_MODULES = [
+    # 1. Themes & Color Palettes
+    "theme/palettesData.js",
+    "theme/paletteHelpers.js",
+    "theme/PaletteManager.js",
 
-# Build standalone extension bundle
-css_content = open(os.path.join(PROJECT_DIR, "style.css"), "r").read()
-deck_js = open(os.path.join(PROJECT_DIR, "WoodenDeck.js"), "r").read()
-fractals_js = open(os.path.join(PROJECT_DIR, "CosmicFractals.js"), "r").read()
-cat_geo = open(os.path.join(PROJECT_DIR, "CatGeometry.js"), "r").read()
-tail_phys = open(os.path.join(PROJECT_DIR, "TailPhysics.js"), "r").read()
-color_pal = open(os.path.join(PROJECT_DIR, "ColorPalettes.js"), "r").read()
-cosmic_env = open(os.path.join(PROJECT_DIR, "CosmicEnvironment.js"), "r").read()
-audio_eng = open(os.path.join(PROJECT_DIR, "AudioAnalysisEngine.js"), "r").read()
-vis_eng = open(os.path.join(PROJECT_DIR, "VisualizerEngine.js"), "r").read()
-index_js = open(os.path.join(PROJECT_DIR, "index.js"), "r").read()
-ext_code = open(os.path.join(PROJECT_DIR, "extension.js"), "r").read()
+    # 2. Audio Pulse & Envelope Engine (Spotify + Web Audio API)
+    "audio/spotifyHooks.js",
+    "audio/tempoEstimator.js",
+    "audio/envelopeFollower.js",
+    "audio/WebAudioBridge.js",
+    "audio/AudioEngine.js",
 
-import json
+    # 3. Switchable Backgrounds (Stars, Nebula, Shockwaves, Grid, Fractals)
+    "backgrounds/CosmicStar.js",
+    "backgrounds/CosmicNebula.js",
+    "backgrounds/Shockwave.js",
+    "backgrounds/CyberGrid.js",
+    "backgrounds/SacredFractals.js",
+    "backgrounds/BackgroundManager.js",
 
-inline_style_inject = f"""
-    if (!document.getElementById("cosmic-cat-styles")) {{
-        const style = document.createElement("style");
-        style.id = "cosmic-cat-styles";
-        style.textContent = {json.dumps(css_content)};
-        document.head.appendChild(style);
-    }}
-"""
+    # 4. Cosmic Cat Model, Geometry & Physics (Unified Facade)
+    "models/cosmic/deckPlanks.js",
+    "models/cosmic/deckLighting.js",
+    "models/cosmic/WoodenDeck.js",
+    "models/cosmic/tailPathBuilder.js",
+    "models/cosmic/tailSparks.js",
+    "models/cosmic/tailKinematics.js",
+    "models/cosmic/tailRenderer.js",
+    "models/cosmic/TailPhysics.js",
+    "models/cosmic/catDeformation.js",
+    "models/cosmic/catBodyPath.js",
+    "models/cosmic/catEarRenderer.js",
+    "models/cosmic/catInteriorRenderer.js",
+    "models/cosmic/catContourRenderer.js",
+    "models/cosmic/CatGeometry.js",
+    "models/cosmic/CosmicCat.js",
 
-bundle_content = f"""// NAME: Cosmic Cat Visualizer
-// AUTHOR: Erozah
-// DESCRIPTION: Immersive cosmic music visualizer with sitting cat, compact deck, sacred geometry fractals, and energy shockwaves.
+    # 5. Cyber Cat Model & Topology
+    "models/cyber/constellationData.js",
+    "models/cyber/cyberTail.js",
+    "models/cyber/cyberAura.js",
+    "models/cyber/cyberConstellation.js",
+    "models/cyber/cyberContours.js",
+    "models/cyber/cyberWhiskers.js",
+    "models/cyber/cyberEyes.js",
+    "models/cyber/cyberHead.js",
+    "models/cyber/CyberCat.js",
 
-(function() {{
-{deck_js}
-{fractals_js}
-{cat_geo}
-{tail_phys}
-{color_pal}
-{cosmic_env}
-{audio_eng}
-{vis_eng}
+    # 6. Core Orchestrator & Loop (SOLID Architecture)
+    "core/panelBounds.js",
+    "core/keybindings.js",
+    "core/fullscreenManager.js",
+    "core/uiSync.js",
+    "core/renderPipeline.js",
+    "core/VisualizerEngine.js",
 
-{inline_style_inject}
+    # 7. UI Components & Extension Bootstrap
+    "ui/canvasMount.js",
+    "ui/controlBar.js",
+    "ui/playbarButton.js",
+    "ui/themeHud.js",
+    "ui/extension.js",
+]
 
-{ext_code}
-}})();
-"""
+css_content = "\n\n".join(read_src(css_mod) for css_mod in CSS_MODULES)
+
+inline_style = (
+    "if (!document.getElementById('cyber-cat-styles')) {\n"
+    "    const style = document.createElement('style');\n"
+    "    style.id = 'cyber-cat-styles';\n"
+    f"    style.textContent = {json.dumps(css_content)};\n"
+    "    document.head.appendChild(style);\n"
+    "} else {\n"
+    f"    document.getElementById('cyber-cat-styles').textContent = {json.dumps(css_content)};\n"
+    "}\n"
+)
+
+js_contents = [read_src(js_mod) for js_mod in JS_MODULES]
+
+bundle_parts = [
+    "// NAME: Cyber & Cosmic Cat Visualizer",
+    "// AUTHOR: Erozah",
+    "// DESCRIPTION: Modular dual-model (Cyberpunk & Cosmic) visualizer with 5 switchable backgrounds.",
+    "",
+    "(function() {",
+    inline_style,
+    "",
+]
+
+# Add all JS modules except ui/extension.js first
+for mod_path, code in zip(JS_MODULES, js_contents):
+    if mod_path == "ui/extension.js":
+        continue
+    bundle_parts.append(f"// --- Module: {mod_path} ---")
+    bundle_parts.append(code)
+    bundle_parts.append("")
+
+bundle_parts.extend([
+    "if (typeof window !== 'undefined') {",
+    "    window.VisualizerEngine = VisualizerEngine;",
+    "}",
+    "",
+    "// --- Module: ui/extension.js ---",
+    read_src("ui/extension.js"),
+    "",
+    "})();"
+])
+
+bundle_content = "\n".join(bundle_parts)
 
 dist_dir = os.path.join(PROJECT_DIR, "dist")
 os.makedirs(dist_dir, exist_ok=True)
 ext_file = os.path.join(dist_dir, "cat-visualizer.js")
-with open(ext_file, "w") as f:
+
+with open(ext_file, "w", encoding="utf-8") as f:
     f.write(bundle_content)
 
 shutil.copy2(ext_file, os.path.join(CONFIG_EXT_DEST, "cat-visualizer.js"))
 shutil.copy2(ext_file, os.path.join(SPICE_EXT_DEST, "cat-visualizer.js"))
 
-# Build self-contained Custom App bundle for Spicetify CustomApps
-custom_app_bundle = f"""// NAME: Cosmic Cat Custom App
-// AUTHOR: Erozah
-// DESCRIPTION: Immersive cosmic music visualizer custom app with HUD and settings.
-
-(function() {{
-{deck_js}
-{fractals_js}
-{cat_geo}
-{tail_phys}
-{color_pal}
-{cosmic_env}
-{audio_eng}
-{vis_eng}
-
-{inline_style_inject}
-
-{index_js}
-}})();
-"""
-
-with open(os.path.join(CONFIG_APP_DEST, "index.js"), "w") as f:
-    f.write(custom_app_bundle)
-with open(os.path.join(SPICE_APP_DEST, "index.js"), "w") as f:
-    f.write(custom_app_bundle)
-
-print("Successfully built and deployed standalone extension and custom app bundles to all Spicetify directories.")
+print(f"Successfully built and deployed cat-visualizer.js ({len(JS_MODULES)} JS modules, {len(CSS_MODULES)} CSS modules).")
