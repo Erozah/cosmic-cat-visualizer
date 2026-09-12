@@ -1,6 +1,6 @@
 /* src/styles/root.css - Root variables, Spotify layout locks, and glassmorphism */
 
-:root, html, body {
+body.cyber-cat-visualizer-active {
     --spice-main: transparent !important;
     --spice-sidebar: transparent !important;
     --spice-player: transparent !important;
@@ -9,12 +9,9 @@
     --spice-highlight: rgba(0, 240, 255, 0.12) !important;
     --spice-highlight-elevated: rgba(0, 240, 255, 0.18) !important;
     --background-base: transparent !important;
-    --background-elevated-base: transparent !important;
     --background-tinted-base: transparent !important;
     --background-highlight: transparent !important;
     --background-press: transparent !important;
-    background: transparent !important;
-    background-color: transparent !important;
 }
 
 html, body {

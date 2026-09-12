@@ -54,6 +54,7 @@ class VisualizerEngine {
 
         setupResizeHandling(this);
         setupVisualizerKeybindings(this);
+        setupFullscreenClickHandler(this);
 
         // Spotify player hook: freeze when music is paused, unfreeze when playing
         if (typeof Spicetify !== "undefined" && Spicetify.Player) {

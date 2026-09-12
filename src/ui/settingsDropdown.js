@@ -139,15 +139,22 @@ function mountSettingsDropdown(engineGetter) {
             </div>
         </div>
 
-        <!-- Section 4: Plein écran & raccourcis -->
-        <div class="dropdown-footer">
-            <button type="button" class="footer-action-btn" id="dropdown-fs-btn">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+        <!-- Section 4: Immersion Plein Écran (Premier Plan) -->
+        <div class="dropdown-section">
+            <div class="section-label">Immersion Plein Écran</div>
+            <button type="button" class="fullscreen-menu-btn" id="dropdown-fs-btn" title="Passer le visualiseur au premier plan plein écran">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
                 </svg>
-                <span>Plein Écran (F)</span>
+                <div class="fs-btn-content">
+                    <span class="fs-btn-title">Plein Écran (Premier Plan)</span>
+                    <span class="fs-btn-sub">Cliquez n'importe où pour quitter</span>
+                </div>
             </button>
-            <span class="footer-hint"><kbd>A</kbd> On/Off &nbsp;|&nbsp; <kbd>C</kbd> Modèle &nbsp;|&nbsp; <kbd>T</kbd> Couleur</span>
+        </div>
+
+        <div class="dropdown-footer">
+            <span class="footer-hint"><kbd>A</kbd> On/Off &nbsp;|&nbsp; <kbd>C</kbd> Modèle &nbsp;|&nbsp; <kbd>T</kbd> Couleur &nbsp;|&nbsp; <kbd>F</kbd> Plein Écran</span>
         </div>
     `;
 
@@ -207,14 +214,17 @@ function mountSettingsDropdown(engineGetter) {
     });
 
     // Event: Fullscreen button
-    dropdown.querySelector("#dropdown-fs-btn").addEventListener("click", (e) => {
-        e.stopPropagation();
-        const eng = engineGetter();
-        if (eng) {
-            eng.toggleFullscreen();
-            closeSettingsDropdown();
-        }
-    });
+    const fsBtn = dropdown.querySelector("#dropdown-fs-btn");
+    if (fsBtn) {
+        fsBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const eng = engineGetter();
+            if (eng) {
+                closeSettingsDropdown();
+                eng.toggleFullscreen(true);
+            }
+        });
+    }
 
     // Click outside to dismiss
     document.addEventListener("click", (e) => {

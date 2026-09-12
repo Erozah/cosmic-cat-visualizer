@@ -7,14 +7,24 @@ function showFullscreenHint() {
     if (!hint) {
         hint = document.createElement('div');
         hint.id = 'cyber-cat-fs-hint';
-        hint.textContent = 'Appuyez sur Échap ou cliquez pour quitter le plein écran';
+        hint.textContent = 'Cliquez n\'importe où pour quitter le plein écran';
         document.body.appendChild(hint);
     }
     hint.classList.add('visible');
     clearTimeout(fullscreenHintTimer);
     fullscreenHintTimer = setTimeout(() => {
         hint.classList.remove('visible');
-    }, 3000);
+    }, 3200);
+}
+
+function setupFullscreenClickHandler(engine) {
+    window.addEventListener('click', (e) => {
+        if (engine && engine.isFullscreen) {
+            e.preventDefault();
+            e.stopPropagation();
+            engine.toggleFullscreen(false);
+        }
+    }, true);
 }
 
 function toggleVisualizerFullscreen(engine, forceState) {
@@ -25,9 +35,6 @@ function toggleVisualizerFullscreen(engine, forceState) {
     }
 
     document.body.classList.toggle('cyber-cat-fullscreen-active', engine.isFullscreen);
-    if (engine.panel) {
-        engine.panel.classList.toggle('fullscreen', engine.isFullscreen);
-    }
 
     syncPanelBounds(engine);
 
