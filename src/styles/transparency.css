@@ -16,7 +16,7 @@ body.cyber-cat-visualizer-active .Root__top-container {
     background-color: transparent !important;
 }
 
-/* Left Sidebar - Full Transparency */
+/* Left Sidebar - Full Height, Expansion for Virtualized List & Full Transparency */
 body.cyber-cat-visualizer-active .Root__nav-bar,
 body.cyber-cat-visualizer-active #Desktop_LeftSidebar_Id,
 body.cyber-cat-visualizer-active .main-yourLibraryX-navBar,
@@ -31,12 +31,54 @@ body.cyber-cat-visualizer-active .main-navBar-mainNav,
 body.cyber-cat-visualizer-active .main-navBar-navBar,
 body.cyber-cat-visualizer-active .YourLibraryX,
 body.cyber-cat-visualizer-active .main-yourLibraryX-entryPoints {
+    height: 100% !important;
+    min-height: 100% !important;
     background: transparent !important;
     background-color: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border-color: transparent !important;
+}
+
+/* Library Filter Chips (Playlists, Artistes, Albums) Contrast & Selection */
+body.cyber-cat-visualizer-active .main-yourLibraryX-filterChips button,
+body.cyber-cat-visualizer-active .main-yourLibraryX-chip,
+body.cyber-cat-visualizer-active [data-testid="your-library-chip"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+body.cyber-cat-visualizer-active .main-yourLibraryX-filterChips button:hover,
+body.cyber-cat-visualizer-active .main-yourLibraryX-chip:hover {
+    background: rgba(0, 240, 255, 0.15) !important;
+    border-color: #00f0ff !important;
+    color: #ffffff !important;
+}
+
+body.cyber-cat-visualizer-active .main-yourLibraryX-filterChips button[aria-checked="true"],
+body.cyber-cat-visualizer-active .main-yourLibraryX-chip[aria-checked="true"],
+body.cyber-cat-visualizer-active [data-active="true"] {
+    background: #00f0ff !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border-color: #00f0ff !important;
+}
+
+body.cyber-cat-visualizer-active .main-yourLibraryX-filterChips button[aria-checked="true"] *,
+body.cyber-cat-visualizer-active .main-yourLibraryX-chip[aria-checked="true"] * {
+    color: #000000 !important;
+    fill: #000000 !important;
+}
+
+/* Library rows, subtitles & icons */
+body.cyber-cat-visualizer-active .main-yourLibraryX-listRowSubtitle,
+body.cyber-cat-visualizer-active .main-yourLibraryX-rowSubTitle,
+body.cyber-cat-visualizer-active .main-yourLibraryX-listRowSubtitleLeadingWrapper {
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
 }
 
 /* Right Sidebar - Full Transparency */
@@ -89,6 +131,7 @@ body.cyber-cat-visualizer-active .main-nowPlayingBar-nowPlayingBar {
 body.cyber-cat-visualizer-active .Root__nav-bar button,
 body.cyber-cat-visualizer-active .Root__nav-bar a,
 body.cyber-cat-visualizer-active .Root__nav-bar span,
+body.cyber-cat-visualizer-active .Root__nav-bar p,
 body.cyber-cat-visualizer-active .Root__now-playing-bar button,
 body.cyber-cat-visualizer-active .Root__now-playing-bar span {
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;

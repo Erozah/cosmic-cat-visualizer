@@ -1,30 +1,58 @@
 /* src/styles/mainView.css - Dynamic central view visibility & transparency (Active ONLY when visualizer is ON) */
 
-/* 1. VISUALIZER ACTIVE: Central Spotify page content hidden to free the cat */
+/* 1. VISUALIZER ACTIVE: Central Spotify page content transparent so playlists & tracks are visible over the wallpaper */
 body.cyber-cat-visualizer-active .Root__main-view,
 body.cyber-cat-visualizer-active main,
-body.cyber-cat-visualizer-active .main-view-container {
-    background: transparent !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-}
-
+body.cyber-cat-visualizer-active .main-view-container,
 body.cyber-cat-visualizer-active .Root__main-view .main-view-container__scroll-node,
 body.cyber-cat-visualizer-active .Root__main-view .main-view-container__scroll-node-child,
 body.cyber-cat-visualizer-active .Root__main-view .os-viewport,
 body.cyber-cat-visualizer-active .Root__main-view .os-host,
+body.cyber-cat-visualizer-active .Root__main-view .os-padding,
+body.cyber-cat-visualizer-active .Root__main-view .os-content,
 body.cyber-cat-visualizer-active .Root__main-view .under-main-view,
 body.cyber-cat-visualizer-active .Root__main-view .main-home-homeHeader,
 body.cyber-cat-visualizer-active .Root__main-view .main-actionBarBackground-background,
 body.cyber-cat-visualizer-active .Root__main-view .main-entityHeader-background,
 body.cyber-cat-visualizer-active .Root__main-view .main-entityHeader-overlay,
 body.cyber-cat-visualizer-active .Root__main-view .main-entityHeader-container,
+body.cyber-cat-visualizer-active .Root__main-view .main-trackList-trackListHeader,
+body.cyber-cat-visualizer-active .Root__main-view .main-trackList-trackListHeaderRow,
+body.cyber-cat-visualizer-active .Root__main-view .main-shelf-shelf,
 body.cyber-cat-visualizer-active .Root__main-view .main-trackList-trackList,
 body.cyber-cat-visualizer-active .Root__main-view .main-gridContainer-gridContainer {
-    opacity: 0 !important;
-    pointer-events: none !important;
-    visibility: hidden !important;
-    transition: opacity 0.25s ease, visibility 0.25s ease !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+/* 2. Glassmorphic cards & playlist track rows for crisp legibility */
+body.cyber-cat-visualizer-active .main-card-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.cyber-cat-visualizer-active .main-card-card:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(0, 240, 255, 0.35) !important;
+}
+
+body.cyber-cat-visualizer-active .main-trackList-trackListRow {
+    background: transparent !important;
+}
+
+body.cyber-cat-visualizer-active .main-trackList-trackListRow:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.cyber-cat-visualizer-active .main-trackList-trackListRow.main-trackList-selected {
+    background-color: rgba(255, 255, 255, 0.15) !important;
 }
