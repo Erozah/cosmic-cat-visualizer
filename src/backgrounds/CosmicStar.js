@@ -1,4 +1,4 @@
-// src/backgrounds/CosmicStar.js - Twinkling cosmic starfield particle with diffraction spikes
+// src/backgrounds/CosmicStar.js - Twinkling cosmic starfield particle with hyperspace warp streaks
 
 class CosmicStar {
     constructor(w, h) {
@@ -17,16 +17,50 @@ class CosmicStar {
         this.crossSize = 4 + Math.random() * 7;
     }
 
-    update(dt, w, h, treble) {
-        this.y += this.speedY * dt * (1 + (treble || 0) * 0.4);
-        if (this.y > h + 10) {
+    update(dt, w, h, audio) {
+        const treble = typeof audio === "number" ? audio : (audio && audio.treble ? audio.treble : 0);
+        const isDrop = audio && typeof audio === "object" && audio.isDrop;
+        const energy = audio && typeof audio === "object" && audio.energy ? audio.energy : 0.4;
+
+        const speedMult = isDrop ? 4.0 : (energy > 0.7 ? 1.8 : 1.0);
+        this.y += this.speedY * dt * (1 + treble * 0.4) * speedMult;
+        if (this.y > h + 20) {
             this.reset(w, h);
         }
     }
 
-    render(ctx, time, treble, color) {
+    render(ctx, time, audio, color) {
+        const treble = typeof audio === "number" ? audio : (audio && audio.treble ? audio.treble : 0);
+        const isDrop = audio && typeof audio === "object" && audio.isDrop;
+        const energy = audio && typeof audio === "object" && audio.energy ? audio.energy : 0.4;
+        const bpm = audio && typeof audio === "object" && audio.bpm ? audio.bpm : 120;
+
+        const isWarping = isDrop || (bpm >= 130 && energy > 0.65);
         const twinkle = Math.sin(time * this.pulseSpeed + this.phase) * 0.3 + 0.7;
-        const alpha = Math.min(1, this.baseAlpha * twinkle * (0.8 + (treble || 0) * 0.6));
+        const alpha = Math.min(1, this.baseAlpha * twinkle * (0.8 + treble * 0.6));
+
+        if (isWarping) {
+            // Hyperspace warp streak
+            const streakLen = Math.min(65, this.speedY * (isDrop ? 2.4 : 1.2));
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(0.7, this.size * 0.85);
+            ctx.globalAlpha = Math.min(1.0, alpha * 1.3);
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x, this.y - streakLen);
+            ctx.stroke();
+
+            // Bright star head
+            ctx.fillStyle = "#ffffff";
+            ctx.globalAlpha = Math.min(1.0, alpha * 1.5);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            return;
+        }
+
         ctx.fillStyle = color;
         ctx.globalAlpha = alpha;
         ctx.beginPath();
@@ -35,7 +69,7 @@ class CosmicStar {
 
         // 4-point diffraction cross spikes on bright celestial stars (heritage Legacy)
         if (this.hasCross && alpha > 0.45) {
-            const clen = this.crossSize * (0.8 + (treble || 0) * 0.5);
+            const clen = this.crossSize * (0.8 + treble * 0.5);
             ctx.strokeStyle = color;
             ctx.lineWidth = 0.75;
             ctx.globalAlpha = alpha * 0.65;

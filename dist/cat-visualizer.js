@@ -199,6 +199,252 @@ function setupSpotifyHooks(engine) {
 }
 
 
+// --- Module: audio/spotifyAnalysis.js ---
+// src/audio/spotifyAnalysis.js - High-fidelity Spotify Audio Analysis engine (beats, bars, sections, segments, pitches, timbre)
+
+class SpotifyAnalysis {
+    constructor() {
+        this.trackId = null;
+        this.data = null;
+        this.isLoading = false;
+
+        // Cursors for fast sequential lookup
+        this.beatCursor = 0;
+        this.barCursor = 0;
+        this.sectionCursor = 0;
+        this.segmentCursor = 0;
+
+        // Current musical state
+        this.lastBeatIndex = -1;
+        this.lastBarIndex = -1;
+        this.lastSectionIndex = -1;
+
+        this.currentBeat = null;
+        this.currentBar = null;
+        this.currentSection = null;
+        this.currentSegment = null;
+
+        this.isBeat = false;
+        this.isBar = false;
+        this.isDrop = false;
+        this.sectionEnergy = 0.5;
+        this.sectionLoudness = -10;
+        this.bpm = 120;
+    }
+
+    async load(trackUriOrId) {
+        if (!trackUriOrId) return;
+        const trackId = trackUriOrId.replace("spotify:track:", "").trim();
+        if (!trackId || this.trackId === trackId) return;
+
+        this.trackId = trackId;
+        this.isLoading = true;
+        this.data = null;
+        this.beatCursor = 0;
+        this.barCursor = 0;
+        this.sectionCursor = 0;
+        this.segmentCursor = 0;
+        this.lastBeatIndex = -1;
+        this.lastBarIndex = -1;
+        this.lastSectionIndex = -1;
+
+        try {
+            // 1. Spicetify CosmosAsync standard endpoint
+            if (typeof Spicetify !== "undefined" && Spicetify.CosmosAsync) {
+                try {
+                    const res = await Spicetify.CosmosAsync.get(`https://api.spotify.com/v1/audio-analysis/${trackId}`);
+                    if (res && (res.beats || res.track || res.sections)) {
+                        this.data = res;
+                        if (res.track && res.track.tempo) {
+                            this.bpm = res.track.tempo;
+                        }
+                        this.isLoading = false;
+                        return;
+                    }
+                } catch (e1) {
+                    // Fallback to internal web player pathway
+                    try {
+                        const resPartner = await Spicetify.CosmosAsync.get(`https://api-partner.spotify.com/pathway/v1/web-player/analysis/${trackId}`);
+                        if (resPartner && (resPartner.beats || resPartner.track || resPartner.sections)) {
+                            this.data = resPartner;
+                            if (resPartner.track && resPartner.track.tempo) {
+                                this.bpm = resPartner.track.tempo;
+                            }
+                            this.isLoading = false;
+                            return;
+                        }
+                    } catch (e2) {}
+                }
+            }
+
+            // 2. Direct fetch with platform auth token
+            if (typeof Spicetify !== "undefined" && Spicetify.Platform && Spicetify.Platform.AuthorizationAPI) {
+                const token = await Spicetify.Platform.AuthorizationAPI.getAccessToken();
+                if (token) {
+                    const resp = await fetch(`https://api.spotify.com/v1/audio-analysis/${trackId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (resp.ok) {
+                        const json = await resp.json();
+                        if (json && (json.beats || json.track || json.sections)) {
+                            this.data = json;
+                            if (json.track && json.track.tempo) {
+                                this.bpm = json.track.tempo;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("[SpotifyAnalysis] Analysis fetch unavailable, falling back to envelope follower:", err);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    findItem(list, cursorName, sec) {
+        if (!list || list.length === 0) return { item: null, index: -1 };
+
+        let idx = this[cursorName] || 0;
+        // If track seeked backwards, reset cursor
+        if (idx >= list.length || (idx > 0 && list[idx].start > sec)) {
+            idx = 0;
+        }
+
+        while (idx < list.length - 1 && list[idx + 1].start <= sec) {
+            idx++;
+        }
+
+        this[cursorName] = idx;
+        const item = list[idx];
+        return { item, index: idx };
+    }
+
+    query(progressSec) {
+        if (!this.data || !this.data.beats || this.data.beats.length === 0) {
+            return null;
+        }
+
+        const sec = Math.max(0, progressSec);
+
+        // 1. Current Beat
+        const { item: beat, index: beatIdx } = this.findItem(this.data.beats, 'beatCursor', sec);
+        let beatPhase = 0;
+        let beatImpulse = 0;
+        let isBeat = false;
+
+        if (beat) {
+            const beatDur = Math.max(0.1, beat.duration || 0.5);
+            beatPhase = Math.max(0, Math.min(1, (sec - beat.start) / beatDur));
+            isBeat = (beatIdx !== this.lastBeatIndex && beatIdx >= 0);
+            if (isBeat) {
+                this.lastBeatIndex = beatIdx;
+            }
+            // Sharp initial peak with natural organic decay
+            beatImpulse = Math.max(0, 1.0 - Math.pow(beatPhase, 0.45) * 1.6);
+        }
+
+        // 2. Current Bar (Measure)
+        const { item: bar, index: barIdx } = this.findItem(this.data.bars, 'barCursor', sec);
+        let barPhase = 0;
+        let isBar = false;
+
+        if (bar) {
+            const barDur = Math.max(0.4, bar.duration || 2.0);
+            barPhase = Math.max(0, Math.min(1, (sec - bar.start) / barDur));
+            isBar = (barIdx !== this.lastBarIndex && barIdx >= 0);
+            if (isBar) {
+                this.lastBarIndex = barIdx;
+            }
+        }
+
+        // 3. Current Section (Intro, Verse, Chorus, Drop, Breakdown)
+        const { item: section, index: secIdx } = this.findItem(this.data.sections, 'sectionCursor', sec);
+        if (section) {
+            if (secIdx !== this.lastSectionIndex) {
+                this.lastSectionIndex = secIdx;
+                if (section.tempo) {
+                    this.bpm = section.tempo;
+                }
+            }
+            this.sectionLoudness = section.loudness || -10;
+            // Map loudness (-28 dB to -3 dB) to normalized energy [0.1 .. 1.0]
+            this.sectionEnergy = Math.max(0.1, Math.min(1.0, (this.sectionLoudness + 28) / 25));
+            // Detect drops/explosive choruses: high loudness & high tempo
+            this.isDrop = this.sectionEnergy > 0.72 || (this.sectionLoudness > -6.5);
+        }
+
+        // 4. Current Segment (Timbre & Pitches)
+        const { item: segment } = this.findItem(this.data.segments, 'segmentCursor', sec);
+        let bassEnergy = 0.2;
+        let midEnergy = 0.2;
+        let trebleEnergy = 0.2;
+        let snareImpulse = 0.0;
+        let segmentLoudness = this.sectionEnergy;
+
+        if (segment) {
+            // Loudness interpolation
+            const segDur = Math.max(0.05, segment.duration || 0.25);
+            const segPhase = Math.max(0, Math.min(1, (sec - segment.start) / segDur));
+            const loudStart = segment.loudness_start || -20;
+            const loudMax = segment.loudness_max || -8;
+            const maxTimeNorm = (segment.loudness_max_time || 0.05) / segDur;
+
+            let currentDb = loudStart;
+            if (segPhase <= maxTimeNorm && maxTimeNorm > 0) {
+                currentDb = loudStart + (loudMax - loudStart) * (segPhase / maxTimeNorm);
+            } else if (maxTimeNorm < 1) {
+                currentDb = loudMax + (loudStart - loudMax) * ((segPhase - maxTimeNorm) / (1 - maxTimeNorm));
+            }
+            segmentLoudness = Math.max(0.1, Math.min(1.0, (currentDb + 32) / 28));
+
+            // Pitches (12 chroma frequencies)
+            if (segment.pitches && segment.pitches.length === 12) {
+                const p = segment.pitches;
+                const lowPitch = (p[0] + p[1] + p[2] + p[3]) / 4;
+                const midPitch = (p[4] + p[5] + p[6] + p[7] + p[8]) / 5;
+                const highPitch = (p[9] + p[10] + p[11]) / 3;
+
+                // Timbre coefficients
+                const t0 = segment.timbre ? Math.max(0, (segment.timbre[0] + 50) / 60) : 0.5; // Overall loudness
+                const t1 = segment.timbre ? Math.max(0, Math.min(1, (segment.timbre[1] + 80) / 160)) : 0.5; // Brightness / highs
+
+                bassEnergy = Math.min(1.0, lowPitch * 0.45 + beatImpulse * 0.55 + (this.isDrop ? 0.2 : 0));
+                midEnergy = Math.min(1.0, midPitch * 0.55 + segmentLoudness * 0.45);
+                trebleEnergy = Math.min(1.0, highPitch * 0.5 + t1 * 0.4 + beatImpulse * 0.2);
+
+                // Detect snare / clap transient: mid/treble spike without deep bass dominance
+                if (isBeat && (beatIdx % 2 === 1) && (t1 > 0.45 || highPitch > 0.55)) {
+                    snareImpulse = Math.min(1.0, (highPitch + t1) * 0.85);
+                }
+            }
+        }
+
+        return {
+            isBeat,
+            isBar,
+            is4BeatPulse: isBeat && (beatIdx % 4 === 0),
+            beatPhase,
+            beatProgress: beatPhase,
+            beatImpulse,
+            barPhase,
+            beatCount: beatIdx,
+            barCount: barIdx,
+            bpm: this.bpm,
+            isDrop: this.isDrop,
+            sectionEnergy: this.sectionEnergy,
+            bass: bassEnergy,
+            mid: midEnergy,
+            mids: midEnergy,
+            treble: trebleEnergy,
+            highs: trebleEnergy,
+            energy: Math.min(1.0, (bassEnergy * 0.45 + midEnergy * 0.3 + trebleEnergy * 0.25) * (0.7 + segmentLoudness * 0.3)),
+            snareImpulse
+        };
+    }
+}
+
+
 // --- Module: audio/tempoEstimator.js ---
 // src/audio/tempoEstimator.js - Algorithmic tempo & duration extraction
 
@@ -217,19 +463,28 @@ function updateAudioEnvelope(engine, t, beatPhase) {
         const beatDecay = Math.max(0, 1 - Math.pow(beatPhase, 0.4) * 1.5);
         const subBeat = Math.sin(t * Math.PI * 4) * 0.15;
 
-        const targetBass = 0.4 + beatDecay * 0.6 + Math.max(0, subBeat);
-        const targetMid = 0.3 + Math.sin(t * 3.2) * 0.2 + (engine.isBeat ? 0.4 : 0);
-        const targetTreble = 0.25 + Math.cos(t * 6.5) * 0.25 + beatDecay * 0.3;
+        const targetBass = 0.35 + beatDecay * 0.65 + Math.max(0, subBeat);
+        const targetMid = 0.25 + Math.sin(t * 3.2) * 0.25 + (engine.isBeat ? 0.35 : 0);
+        const targetTreble = 0.2 + Math.cos(t * 6.5) * 0.3 + beatDecay * 0.4;
 
-        engine.bass += (targetBass - engine.bass) * 0.25;
-        engine.mid += (targetMid - engine.mid) * 0.18;
-        engine.treble += (targetTreble - engine.treble) * 0.22;
+        engine.bass += (targetBass - engine.bass) * 0.28;
+        engine.mid += (targetMid - engine.mid) * 0.20;
+        engine.treble += (targetTreble - engine.treble) * 0.24;
+
+        // Snare impulse on beat 2 and 4
+        const beatInBar = (engine.beatCount % 4);
+        if (engine.isBeat && (beatInBar === 1 || beatInBar === 3)) {
+            engine.snareImpulse = 0.85;
+        } else {
+            engine.snareImpulse = (engine.snareImpulse || 0) * 0.85;
+        }
     } else {
         // Serene resting breathing when paused
-        const breath = 0.15 + (Math.sin(engine.liveTime * 1.5) * 0.5 + 0.5) * 0.12;
+        const breath = 0.12 + (Math.sin(engine.liveTime * 1.5) * 0.5 + 0.5) * 0.1;
         engine.bass += (breath - engine.bass) * 0.08;
         engine.mid += (breath * 0.8 - engine.mid) * 0.08;
         engine.treble += (breath * 0.5 - engine.treble) * 0.08;
+        engine.snareImpulse = 0;
     }
 
     engine.energy = (engine.bass * 0.5) + (engine.mid * 0.3) + (engine.treble * 0.2);
@@ -238,10 +493,12 @@ function updateAudioEnvelope(engine, t, beatPhase) {
     engine.mids = engine.mid;
     engine.highs = engine.treble;
     engine.bpm = engine.tempo;
-    engine.beatImpulse = (engine.isBeat ? 1.0 : 0.0) + Math.max(0, 1.0 - engine.beatProgress * 2.5) * 0.4;
+    engine.beatImpulse = (engine.isBeat ? 1.0 : 0.0) + Math.max(0, 1.0 - engine.beatProgress * 2.2) * 0.5;
     engine.isBeatPulse = engine.isBeat;
     engine.is4BeatPulse = engine.isBeat && (engine.beatCount % 4 === 0);
+    engine.barPhase = (engine.beatCount % 4 + engine.beatProgress) / 4;
 }
+
 
 
 // --- Module: audio/WebAudioBridge.js ---
@@ -370,7 +627,6 @@ class WebAudioBridge {
 
 // --- Module: audio/AudioEngine.js ---
 // src/audio/AudioEngine.js - Musical pulse & audio reactivity orchestrator
-
 class AudioEngine {
     constructor() {
         this.isPlaying = false;
@@ -392,6 +648,14 @@ class AudioEngine {
         this.beatCount = 0;
         this.lastBeatTime = 0;
 
+        // Measures & drops
+        this.isBar = false;
+        this.barCount = 0;
+        this.barPhase = 0;
+        this.isDrop = false;
+        this.sectionEnergy = 0.5;
+        this.snareImpulse = 0;
+
         // Aliases for multi-model compatibility
         this.mids = 0.1;
         this.highs = 0.1;
@@ -401,8 +665,9 @@ class AudioEngine {
         this.isBeatPulse = false;
         this.is4BeatPulse = false;
 
-        // Optional Web Audio API spectrum bridge
+        // Optional Web Audio API spectrum bridge & Spotify Analysis
         this.webAudio = new WebAudioBridge();
+        this.spotifyAnalysis = new SpotifyAnalysis();
 
         setupSpotifyHooks(this);
     }
@@ -420,9 +685,13 @@ class AudioEngine {
         const data = Spicetify.Player.data;
         if (data && data.item) {
             this.duration = data.item.duration ? data.item.duration.milliseconds : 180000;
-            this.trackUri = data.item.uri || "";
-            this.tempo = estimateTrackTempo(this.trackUri, data.item.name || "");
-            this.bpm = this.tempo;
+            const newUri = data.item.uri || "";
+            if (newUri && newUri !== this.trackUri) {
+                this.trackUri = newUri;
+                this.tempo = estimateTrackTempo(this.trackUri, data.item.name || "");
+                this.bpm = this.tempo;
+                this.spotifyAnalysis.load(this.trackUri);
+            }
         }
     }
 
@@ -448,10 +717,12 @@ class AudioEngine {
             this.beatImpulse = (this.isBeat ? 1.0 : 0.0) + this.energy * 0.4;
             this.isBeatPulse = this.isBeat;
             this.is4BeatPulse = this.isBeat && (this.beatCount % 4 === 0);
+            this.barPhase = (this.beatCount % 4) / 4;
+            this.snareImpulse = (this.beatCount % 2 === 1 && this.isBeat) ? 0.8 : (this.snareImpulse * 0.85);
             return;
         }
 
-        // 2. Otherwise sync with Spotify Player and algorithmic envelope
+        // 2. Sync playback progress with Spotify Player
         if (typeof Spicetify !== "undefined" && Spicetify.Player) {
             this.isPlaying = Spicetify.Player.isPlaying();
             const prog = Spicetify.Player.getProgress();
@@ -460,6 +731,41 @@ class AudioEngine {
             this.progress += (this.isPlaying ? dt * 1000 : 0);
         }
 
+        // 3. Check for authentic Spotify Audio Analysis data
+        const analysisData = this.isPlaying ? this.spotifyAnalysis.query(this.progress / 1000) : null;
+
+        if (analysisData) {
+            this.tempo = analysisData.bpm;
+            this.bpm = analysisData.bpm;
+            this.beatProgress = analysisData.beatProgress;
+            this.beatPhase = analysisData.beatPhase;
+            this.isBeat = analysisData.isBeat;
+            this.isBar = analysisData.isBar;
+            this.is4BeatPulse = analysisData.is4BeatPulse;
+            this.isBeatPulse = analysisData.isBeat;
+            this.beatCount = analysisData.beatCount;
+            this.barCount = analysisData.barCount;
+            this.barPhase = analysisData.barPhase;
+            this.isDrop = analysisData.isDrop;
+            this.sectionEnergy = analysisData.sectionEnergy;
+            this.snareImpulse = analysisData.snareImpulse;
+            this.beatImpulse = analysisData.beatImpulse;
+
+            if (this.isBeat) {
+                this.lastBeatTime = this.liveTime;
+            }
+
+            const smoothRate = analysisData.isBeat ? 0.4 : 0.22;
+            this.bass += (analysisData.bass - this.bass) * smoothRate;
+            this.mid += (analysisData.mid - this.mid) * (smoothRate * 0.85);
+            this.treble += (analysisData.treble - this.treble) * smoothRate;
+            this.energy += (analysisData.energy - this.energy) * smoothRate;
+            this.mids = this.mid;
+            this.highs = this.treble;
+            return;
+        }
+
+        // 4. Algorithmic fallback when analysis is unavailable
         const beatInterval = 60 / this.tempo;
         const t = this.isPlaying ? (this.progress / 1000) : (this.liveTime * 0.5);
         const beatPhase = (t % beatInterval) / beatInterval;
@@ -483,7 +789,7 @@ class AudioEngine {
 
 
 // --- Module: backgrounds/CosmicStar.js ---
-// src/backgrounds/CosmicStar.js - Twinkling cosmic starfield particle with diffraction spikes
+// src/backgrounds/CosmicStar.js - Twinkling cosmic starfield particle with hyperspace warp streaks
 
 class CosmicStar {
     constructor(w, h) {
@@ -502,16 +808,50 @@ class CosmicStar {
         this.crossSize = 4 + Math.random() * 7;
     }
 
-    update(dt, w, h, treble) {
-        this.y += this.speedY * dt * (1 + (treble || 0) * 0.4);
-        if (this.y > h + 10) {
+    update(dt, w, h, audio) {
+        const treble = typeof audio === "number" ? audio : (audio && audio.treble ? audio.treble : 0);
+        const isDrop = audio && typeof audio === "object" && audio.isDrop;
+        const energy = audio && typeof audio === "object" && audio.energy ? audio.energy : 0.4;
+
+        const speedMult = isDrop ? 4.0 : (energy > 0.7 ? 1.8 : 1.0);
+        this.y += this.speedY * dt * (1 + treble * 0.4) * speedMult;
+        if (this.y > h + 20) {
             this.reset(w, h);
         }
     }
 
-    render(ctx, time, treble, color) {
+    render(ctx, time, audio, color) {
+        const treble = typeof audio === "number" ? audio : (audio && audio.treble ? audio.treble : 0);
+        const isDrop = audio && typeof audio === "object" && audio.isDrop;
+        const energy = audio && typeof audio === "object" && audio.energy ? audio.energy : 0.4;
+        const bpm = audio && typeof audio === "object" && audio.bpm ? audio.bpm : 120;
+
+        const isWarping = isDrop || (bpm >= 130 && energy > 0.65);
         const twinkle = Math.sin(time * this.pulseSpeed + this.phase) * 0.3 + 0.7;
-        const alpha = Math.min(1, this.baseAlpha * twinkle * (0.8 + (treble || 0) * 0.6));
+        const alpha = Math.min(1, this.baseAlpha * twinkle * (0.8 + treble * 0.6));
+
+        if (isWarping) {
+            // Hyperspace warp streak
+            const streakLen = Math.min(65, this.speedY * (isDrop ? 2.4 : 1.2));
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(0.7, this.size * 0.85);
+            ctx.globalAlpha = Math.min(1.0, alpha * 1.3);
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x, this.y - streakLen);
+            ctx.stroke();
+
+            // Bright star head
+            ctx.fillStyle = "#ffffff";
+            ctx.globalAlpha = Math.min(1.0, alpha * 1.5);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            return;
+        }
+
         ctx.fillStyle = color;
         ctx.globalAlpha = alpha;
         ctx.beginPath();
@@ -520,7 +860,7 @@ class CosmicStar {
 
         // 4-point diffraction cross spikes on bright celestial stars (heritage Legacy)
         if (this.hasCross && alpha > 0.45) {
-            const clen = this.crossSize * (0.8 + (treble || 0) * 0.5);
+            const clen = this.crossSize * (0.8 + treble * 0.5);
             ctx.strokeStyle = color;
             ctx.lineWidth = 0.75;
             ctx.globalAlpha = alpha * 0.65;
@@ -607,21 +947,33 @@ class CosmicNebula {
 
 
 // --- Module: backgrounds/Shockwave.js ---
-// src/backgrounds/Shockwave.js - Audio beat-driven shockwave pulse ring
+// src/backgrounds/Shockwave.js - Audio beat-driven shockwave pulse ring (dual kick & snare)
 
 class Shockwave {
-    constructor(x, y, maxRadius, color) {
+    constructor(x, y, maxRadius, color, type = "kick") {
         this.x = x;
         this.y = y;
-        this.radius = 16;
+        this.type = type;
         this.maxRadius = maxRadius;
         this.color = color;
         this.life = 1.0;
-        this.decay = 1.35;
+
+        if (type === "snare") {
+            this.radius = 26;
+            this.speed = 6.2;
+            this.decay = 2.2;
+            this.baseLineWidth = 1.2;
+        } else {
+            // Kick / Bass shockwave
+            this.radius = 16;
+            this.speed = 3.6;
+            this.decay = 1.35;
+            this.baseLineWidth = 2.8;
+        }
     }
 
     update(dt) {
-        this.radius += (this.maxRadius - this.radius) * (dt * 3.5);
+        this.radius += (this.maxRadius - this.radius) * (dt * this.speed);
         this.life -= dt * this.decay;
         return this.life > 0;
     }
@@ -631,17 +983,23 @@ class Shockwave {
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = Math.max(0.5, 2.5 * this.life);
-        ctx.globalAlpha = Math.max(0, this.life * 0.65);
+        ctx.lineWidth = Math.max(0.6, this.baseLineWidth * this.life);
+        ctx.globalAlpha = Math.max(0, this.life * (this.type === "snare" ? 0.75 : 0.65));
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.stroke();
 
-        if (this.radius > 35) {
+        if (this.type === "kick" && this.radius > 35) {
             ctx.lineWidth = 1.0 * this.life;
             ctx.globalAlpha = Math.max(0, this.life * 0.35);
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius * 0.75, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (this.type === "snare" && this.radius > 30) {
+            ctx.lineWidth = 0.7 * this.life;
+            ctx.globalAlpha = Math.max(0, this.life * 0.4);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius * 0.88, 0, Math.PI * 2);
             ctx.stroke();
         }
         ctx.restore();
@@ -800,9 +1158,11 @@ class CosmicFractals {
 
     update(dt, time, audioState, isPlaying = true) {
         const bpm = audioState.bpm || 120;
-        const mids = audioState.mids || 0;
+        const mids = audioState.mids || audioState.mid || 0;
+        const isDrop = audioState.isDrop || false;
 
-        const rotSpeed = isPlaying ? (0.12 + (bpm / 60) * 0.12 + mids * 0.35) : 0.025;
+        const dropSpeed = isDrop ? 2.4 : 1.0;
+        const rotSpeed = isPlaying ? ((0.12 + (bpm / 60) * 0.12 + mids * 0.35) * dropSpeed) : 0.025;
         this.rotationAngle += rotSpeed * dt;
     }
 
@@ -811,20 +1171,23 @@ class CosmicFractals {
      */
     render(ctx, cx, cy, baseRadius, palette, audioState) {
         const bass = audioState.bass || 0;
-        const mids = audioState.mids || 0;
+        const mids = audioState.mids || audioState.mid || 0;
         const beat = audioState.beatImpulse || 0;
+        const snare = audioState.snareImpulse || 0;
         const energy = audioState.energy || 0.4;
+        const isDrop = audioState.isDrop || false;
+        const dropMultiplier = isDrop ? 1.25 : 1.0;
 
-        const fractalScale = baseRadius * (1.18 + bass * 0.18 + beat * 0.12);
-        const alphaBase = Math.min(0.55, (0.24 + energy * 0.20 + bass * 0.12) * 0.85);
+        const fractalScale = baseRadius * (1.18 + bass * 0.22 + beat * 0.14) * dropMultiplier;
+        const alphaBase = Math.min(0.60, (0.24 + energy * 0.22 + bass * 0.14 + (isDrop ? 0.15 : 0)) * 0.85);
 
         ctx.save();
         ctx.globalCompositeOperation = "screen";
         ctx.translate(cx, cy);
         ctx.rotate(this.rotationAngle);
 
-        // 1. Batched Celestial Outer Tick Marks Ring (Using precomputed table)
-        const outerTickRadius = fractalScale * 1.08;
+        // 1. Batched Celestial Outer Tick Marks Ring (With snare reactivity)
+        const outerTickRadius = fractalScale * (1.08 + snare * 0.06);
         const innerTickRadius = fractalScale * 1.03;
         const majorTickRadius = fractalScale * 0.99;
 
@@ -836,8 +1199,8 @@ class CosmicFractals {
             ctx.moveTo(cos * rIn, sin * rIn);
             ctx.lineTo(cos * outerTickRadius, sin * outerTickRadius);
         }
-        ctx.strokeStyle = palette.accentAlpha(alphaBase * 0.75);
-        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = snare > 0.4 ? palette.core : palette.accentAlpha(alphaBase * (0.75 + snare * 0.4));
+        ctx.lineWidth = 1.0 + snare * 0.8;
         ctx.stroke();
 
         // 2. Concentric Sacred Harmonic Rings (Batched by style)
@@ -845,8 +1208,8 @@ class CosmicFractals {
         ctx.beginPath();
         ctx.arc(0, 0, fractalScale * 1.08, 0, Math.PI * 2);
         ctx.arc(0, 0, fractalScale * 1.0, 0, Math.PI * 2);
-        ctx.strokeStyle = palette.accentAlpha(alphaBase * 0.75);
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = isDrop ? palette.core : palette.accentAlpha(alphaBase * 0.75);
+        ctx.lineWidth = 1.4 + (isDrop ? 0.8 : 0);
         ctx.stroke();
 
         // Inner harmonic rings
@@ -911,7 +1274,7 @@ class CosmicFractals {
 
         // 5. Radiant Central Node
         const centralGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, fractalScale * 0.35);
-        centralGlow.addColorStop(0, `rgba(255, 255, 255, ${alphaBase * 0.65})`);
+        centralGlow.addColorStop(0, `rgba(255, 255, 255, ${alphaBase * (0.65 + (isDrop ? 0.35 : 0))})`);
         centralGlow.addColorStop(0.35, palette.accentAlpha(alphaBase * 0.55));
         centralGlow.addColorStop(0.8, palette.primaryAlpha(alphaBase * 0.25));
         centralGlow.addColorStop(1.0, "transparent");
@@ -1027,38 +1390,42 @@ function renderDeckPlanks(ctx, width, height, deckY, planks) {
 
 
 // --- Module: backgrounds/deckLighting.js ---
-// src/models/cosmic/deckLighting.js - Wooden deck rim light, reflection, and contact shadow
+// src/models/cosmic/deckLighting.js - Wooden deck rim light, reflection, and contact shadow with audio transients
 
 function renderDeckLighting(ctx, width, height, deckY, palette, audioState, centerX = null) {
     const deckHeight = height - deckY;
     const bass = audioState.bass || 0;
     const beat = audioState.beatImpulse || 0;
+    const snare = audioState.snareImpulse || 0;
     const energy = audioState.energy || 0.5;
+    const isDrop = audioState.isDrop || false;
+    const dropMultiplier = isDrop ? 1.4 : 1.0;
     const cx = centerX !== null ? centerX : width * 0.5;
 
     // 1. Deck Horizon Rim Light
     ctx.save();
     ctx.globalCompositeOperation = "screen";
 
-    const rimGrad = ctx.createLinearGradient(0, deckY - 3, 0, deckY + 6);
-    rimGrad.addColorStop(0, palette.accentAlpha(0.65 + beat * 0.35));
-    rimGrad.addColorStop(0.35, palette.primaryAlpha(0.4 + bass * 0.3));
+    const rimGrad = ctx.createLinearGradient(0, deckY - 4, 0, deckY + 8);
+    rimGrad.addColorStop(0, palette.accentAlpha(Math.min(1.0, (0.65 + beat * 0.35 + snare * 0.3) * dropMultiplier)));
+    rimGrad.addColorStop(0.35, palette.primaryAlpha(Math.min(1.0, (0.4 + bass * 0.3) * dropMultiplier)));
     rimGrad.addColorStop(1.0, "transparent");
 
     ctx.fillStyle = rimGrad;
-    ctx.fillRect(0, deckY - 2, width, 8);
+    ctx.fillRect(0, deckY - 3, width, 10);
 
     // Diffuse rim line
-    ctx.strokeStyle = palette.accentAlpha(0.5 + beat * 0.3);
-    ctx.lineWidth = 3.0;
+    ctx.strokeStyle = palette.accentAlpha(Math.min(1.0, (0.5 + beat * 0.3 + snare * 0.25) * dropMultiplier));
+    ctx.lineWidth = 3.0 + (isDrop ? 1.5 : 0);
     ctx.beginPath();
     ctx.moveTo(0, deckY);
     ctx.lineTo(width, deckY);
     ctx.stroke();
 
-    // Crisp white core rim
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + beat * 0.4})`;
-    ctx.lineWidth = 1.0;
+    // Crisp white core rim (flashes bright on snares & drops)
+    const whiteRimAlpha = Math.min(1.0, (0.6 + beat * 0.4 + snare * 0.4) * dropMultiplier);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${whiteRimAlpha})`;
+    ctx.lineWidth = 1.0 + (isDrop ? 0.5 : 0);
     ctx.beginPath();
     ctx.moveTo(0, deckY);
     ctx.lineTo(width, deckY);
@@ -1070,7 +1437,7 @@ function renderDeckLighting(ctx, width, height, deckY, palette, audioState, cent
     ctx.save();
     ctx.globalCompositeOperation = "screen";
 
-    const reflW = width * 0.34 * (1.0 + bass * 0.2);
+    const reflW = width * 0.34 * (1.0 + bass * 0.25 + (isDrop ? 0.3 : 0));
     const reflH = deckHeight * 0.85;
 
     const woodReflGrad = ctx.createRadialGradient(
@@ -1078,10 +1445,10 @@ function renderDeckLighting(ctx, width, height, deckY, palette, audioState, cent
         cx, deckY + reflH * 0.5, reflW
     );
 
-    const reflAlpha = (0.22 + bass * 0.18 + beat * 0.2) * (0.8 + energy * 0.4);
-    woodReflGrad.addColorStop(0, palette.accentAlpha(reflAlpha * 0.9));
-    woodReflGrad.addColorStop(0.3, palette.primaryAlpha(reflAlpha * 0.6));
-    woodReflGrad.addColorStop(0.7, palette.secondaryAlpha(reflAlpha * 0.25));
+    const reflAlpha = Math.min(1.0, (0.22 + bass * 0.18 + beat * 0.2 + snare * 0.15) * (0.8 + energy * 0.4) * dropMultiplier);
+    woodReflGrad.addColorStop(0, palette.accentAlpha(reflAlpha * 0.95));
+    woodReflGrad.addColorStop(0.3, palette.primaryAlpha(reflAlpha * 0.65));
+    woodReflGrad.addColorStop(0.7, palette.secondaryAlpha(reflAlpha * 0.3));
     woodReflGrad.addColorStop(1.0, "transparent");
 
     ctx.fillStyle = woodReflGrad;
@@ -1203,9 +1570,9 @@ class BackgroundManager {
         }
     }
 
-    spawnShockwave(x, y, maxRadius, color) {
-        if (this.shockwaves.length < 8) {
-            this.shockwaves.push(new Shockwave(x, y, maxRadius, color));
+    spawnShockwave(x, y, maxRadius, color, type = "kick") {
+        if (this.shockwaves.length < 12) {
+            this.shockwaves.push(new Shockwave(x, y, maxRadius, color, type));
         }
     }
 
@@ -1217,7 +1584,7 @@ class BackgroundManager {
         // 1. Stars update (if enabled)
         if (this.effects.stars) {
             for (let i = 0; i < this.stars.length; i++) {
-                this.stars[i].update(dt, w, h, audio.treble);
+                this.stars[i].update(dt, w, h, audio);
             }
         }
 
@@ -1227,9 +1594,14 @@ class BackgroundManager {
         }
 
         // 3. Shockwaves update (if enabled)
-        if (this.effects.shockwaves) {
-            if (audio.isBeat && audio.isPlaying && audio.bass > 0.45) {
-                this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.48, palette.shockwave);
+        if (this.effects.shockwaves && audio.isPlaying) {
+            // Kick shockwave (heavy bass ring)
+            if ((audio.isBeat && audio.bass > 0.45) || (audio.beatImpulse > 0.72)) {
+                this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.50, palette.shockwave, "kick");
+            }
+            // Snare shockwave (rapid thin ripple)
+            if (audio.snareImpulse > 0.65) {
+                this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.44, palette.accent, "snare");
             }
             for (let i = this.shockwaves.length - 1; i >= 0; i--) {
                 if (!this.shockwaves[i].update(dt)) {
@@ -1278,21 +1650,23 @@ class BackgroundManager {
         if (this.effects.stars) {
             ctx.globalCompositeOperation = "screen";
             for (let i = 0; i < this.stars.length; i++) {
-                this.stars[i].render(ctx, time, audio.treble, palette.core);
+                this.stars[i].render(ctx, time, audio, palette.core);
             }
         }
 
         // Layer 5: Concentric audio aura rings (subtle presence)
-        const auraRadius = 135 + (audio.bass || 0) * 30;
+        const isDrop = audio && audio.isDrop;
+        const dropMultiplier = isDrop ? 1.5 : 1.0;
+        const auraRadius = (135 + (audio.bass || 0) * 35) * dropMultiplier;
         ctx.globalCompositeOperation = "lighter";
-        ctx.strokeStyle = palette.primary;
-        ctx.lineWidth = 1.0;
-        ctx.globalAlpha = 0.15 + (audio.bass || 0) * 0.15;
+        ctx.strokeStyle = isDrop ? palette.accent : palette.primary;
+        ctx.lineWidth = 1.0 + (isDrop ? 0.8 : 0);
+        ctx.globalAlpha = Math.min(0.5, (0.15 + (audio.bass || 0) * 0.15) * dropMultiplier);
         ctx.beginPath();
         ctx.arc(catCenterX, catCenterY, auraRadius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Layer 6: Radial beat shockwaves (if enabled)
+        // Layer 6: Radial beat & snare shockwaves (if enabled)
         if (this.effects.shockwaves) {
             for (let i = 0; i < this.shockwaves.length; i++) {
                 this.shockwaves[i].render(ctx);
@@ -1360,17 +1734,38 @@ function buildTailClosedPath(ctx, nodes, leftPoints, rightPoints, segmentCount, 
 function updateTailSparks(sparkTrail, tipNode, baseScale, audioState, dt, isPlaying) {
     const highs = audioState.highs || 0;
     const beat = audioState.beatImpulse || 0;
+    const snare = audioState.snareImpulse || 0;
+    const isDrop = !!audioState.isDrop;
 
-    // Spawn sparks
-    if (isPlaying && Math.random() < 0.35 + highs * 0.5 + beat * 0.3) {
+    // Burst of sparks on snare / clap hit
+    if (isPlaying && snare > 0.4) {
+        const burstCount = Math.floor(3 + snare * 4 + (isDrop ? 3 : 0));
+        for (let b = 0; b < burstCount; b++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = 30 + Math.random() * 60;
+            sparkTrail.push({
+                x: tipNode.x,
+                y: tipNode.y,
+                vx: Math.cos(angle) * spd,
+                vy: Math.sin(angle) * spd,
+                life: 1.0,
+                decay: 1.2 + Math.random() * 1.5,
+                size: (2.0 + Math.random() * 3.0) * baseScale,
+                color: Math.random() < 0.5 ? "accent" : "starlight"
+            });
+        }
+    }
+
+    // Continuous trailing sparks
+    if (isPlaying && Math.random() < (0.35 + highs * 0.5 + beat * 0.35 + (isDrop ? 0.3 : 0))) {
         sparkTrail.push({
-            x: tipNode.x + (Math.random() - 0.5) * 6,
-            y: tipNode.y + (Math.random() - 0.5) * 6,
-            vx: (Math.random() - 0.5) * 20 - 10,
-            vy: (Math.random() - 0.5) * 20 - 10,
+            x: tipNode.x + (Math.random() - 0.5) * 8,
+            y: tipNode.y + (Math.random() - 0.5) * 8,
+            vx: (Math.random() - 0.5) * 25 - 12,
+            vy: (Math.random() - 0.5) * 25 - 12,
             life: 1.0,
             decay: 1.1 + Math.random() * 1.4,
-            size: (1.5 + Math.random() * 2.5) * baseScale,
+            size: (1.5 + Math.random() * 2.8) * baseScale,
             color: Math.random() < 0.6 ? "accent" : "starlight"
         });
     }
@@ -1649,29 +2044,37 @@ function computeCatDeformation(cx, cy, width, height, audioState, time, deckY, i
     const highs = Number.isFinite(audioState?.highs) ? audioState.highs : 0.2;
     const beat = Number.isFinite(audioState?.beatImpulse) ? audioState.beatImpulse : 0.0;
     const bpm = Number.isFinite(audioState?.bpm) ? audioState.bpm : 120;
+    const isDrop = !!audioState?.isDrop;
+    const snare = Number.isFinite(audioState?.snareImpulse) ? audioState.snareImpulse : 0.0;
 
     // Peaceful resting breath or audio-reactive respiration
-    const breathSpeed = isPlaying ? (1.6 + (bpm / 60) * 0.4) : 0.8;
-    const breath = Math.sin(time * breathSpeed) * (isPlaying ? 0.028 : 0.012);
+    const breathSpeed = isPlaying ? (1.5 + (bpm / 60) * 0.5) : 0.8;
+    const breath = Math.sin(time * breathSpeed) * (isPlaying ? 0.035 : 0.012);
 
-    // Bass expansion & beat pop
-    const bassExpansionX = isPlaying ? (bass * 0.07 + beat * 0.05) : 0;
-    const bassExpansionY = isPlaying ? (bass * 0.04 + beat * 0.03) : 0;
+    // Dynamic Feline Squash & Stretch on beat impacts
+    // On kick impact: body compresses down (squash) and widens (stretchX)
+    const dropMultiplier = isDrop ? 1.45 : 1.0;
+    const squashCompressY = isPlaying ? (-beat * 0.09 * dropMultiplier + bass * 0.05) : 0;
+    const stretchWidenX = isPlaying ? (beat * 0.12 * dropMultiplier + bass * 0.08) : 0;
 
-    // High frequency micro-vibration
-    const vibration = isPlaying ? Math.sin(time * 45) * highs * 0.012 : 0;
+    // High frequency micro-vibration on cymbal / hi-hat
+    const vibration = isPlaying ? Math.sin(time * 50) * highs * 0.018 : 0;
 
-    const currentScaleX = (1.0 + breath + bassExpansionX + vibration) * (width * 0.5);
-    const currentScaleY = (1.0 - breath * 0.5 + bassExpansionY) * (height * 0.5);
+    const currentScaleX = (1.0 + breath + stretchWidenX + vibration) * (width * 0.5);
+    const currentScaleY = (1.0 - breath * 0.5 + squashCompressY) * (height * 0.5);
 
-    // Spine organic swaying
-    const spineSway = isPlaying ? (Math.sin(time * 2.0) * (0.015 + mids * 0.025)) : (Math.sin(time * 0.8) * 0.005);
+    // Spine organic swaying (amplified on melody & drops)
+    const spineSwaySpeed = isPlaying ? (bpm / 60) * 1.5 : 0.8;
+    const spineSway = isPlaying 
+        ? (Math.sin(time * spineSwaySpeed) * (0.025 + mids * 0.04 * dropMultiplier)) 
+        : (Math.sin(time * 0.8) * 0.005);
 
-    // Ear perk intensity
-    const earPerk = isPlaying ? (highs * 0.06 + beat * 0.05) : 0;
+    // Ear perk intensity on snare, claps, and high frequencies
+    const earPerk = isPlaying ? (highs * 0.08 + snare * 0.12 + beat * 0.06) : 0;
 
-    // Ground base firmly at deckY
-    const actualCy = deckY ? (deckY - currentScaleY * 0.96) : cy;
+    // Ground base firmly at deckY with dynamic springy bounce
+    const bounceOffset = isPlaying ? (-Math.sin((audioState?.beatProgress || 0) * Math.PI) * (4.0 * bass + 8.0 * beat) * dropMultiplier) : 0;
+    const actualCy = deckY ? (deckY - currentScaleY * 0.96 + bounceOffset) : (cy + bounceOffset);
 
     return {
         cx,
@@ -1685,9 +2088,11 @@ function computeCatDeformation(cx, cy, width, height, audioState, time, deckY, i
         beat,
         highs,
         mids,
+        isDrop,
         deckY
     };
 }
+
 
 
 // --- Module: models/cosmic/catBodyPath.js ---
@@ -1894,13 +2299,15 @@ function renderCatInterior(ctx, p, landmarks, palette, time) {
     ctx.save();
     ctx.globalCompositeOperation = "screen";
 
+    const dropBloom = p.isDrop ? 1.45 : 1.0;
+    const heartPulseRadius = scaleY * (0.75 + beat * 0.35 * dropBloom + (p.mids || 0) * 0.2);
     const heartGlow = ctx.createRadialGradient(
         spineMid[0], spineMid[1] - scaleY * 0.2, 5,
-        spineMid[0], spineMid[1] - scaleY * 0.1, scaleY * 0.75
+        spineMid[0], spineMid[1] - scaleY * 0.1, heartPulseRadius
     );
-    heartGlow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-    heartGlow.addColorStop(0.25, palette.accentAlpha(0.95));
-    heartGlow.addColorStop(0.55, palette.primaryAlpha(0.75 + bass * 0.2));
+    heartGlow.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+    heartGlow.addColorStop(0.25, palette.accentAlpha(0.95 * dropBloom));
+    heartGlow.addColorStop(0.55, palette.primaryAlpha((0.75 + bass * 0.25) * dropBloom));
     heartGlow.addColorStop(0.85, palette.secondaryAlpha(0.40));
     heartGlow.addColorStop(1.0, "transparent");
 
@@ -1921,15 +2328,16 @@ function renderCatInterior(ctx, p, landmarks, palette, time) {
     ctx.fill();
 
     // 4. Luminous spine energy line with sparkling starlight
+    const spineLineWidth = (2.4 + beat * 1.8 + (p.mids || 0) * 1.2) * (p.isDrop ? 1.4 : 1.0);
     ctx.beginPath();
     ctx.moveTo(headCenter[0], headCenter[1] + 10);
-    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * 2.2) * 5, spineMid[1], baseCenter[0], baseCenter[1] - 8);
+    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * 2.2) * (5 + beat * 6), spineMid[1], baseCenter[0], baseCenter[1] - 8);
     ctx.strokeStyle = palette.accentAlpha(1.0);
-    ctx.lineWidth = 2.8;
+    ctx.lineWidth = spineLineWidth;
     ctx.stroke();
 
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = Math.max(1.0, spineLineWidth * 0.45);
     ctx.stroke();
 
     ctx.restore();
@@ -2211,11 +2619,19 @@ function renderCyberBodyAura(ctx, audio, palette) {
 
 
 // --- Module: models/cyber/cyberConstellation.js ---
-// src/models/cyber/cyberConstellation.js - Constellation nodes, lines, and pulsar heart rendering
+// src/models/cyber/cyberConstellation.js - Constellation nodes, lines, and frequency-mapped pulsar heart
 
 function renderCyberConstellation(ctx, nodes, links, time, audio, palette) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+
+    const bass = audio.bass || 0;
+    const mid = audio.mid || 0;
+    const treble = audio.treble || 0;
+    const beat = audio.beatImpulse || 0;
+    const snare = audio.snareImpulse || 0;
+    const isDrop = audio.isDrop || false;
+    const dropMultiplier = isDrop ? 1.5 : 1.0;
 
     const nodeMap = {};
     for (let i = 0; i < nodes.length; i++) {
@@ -2223,9 +2639,10 @@ function renderCyberConstellation(ctx, nodes, links, time, audio, palette) {
         nodeMap[n.id] = n;
     }
 
-    ctx.strokeStyle = palette.primary;
-    ctx.lineWidth = 1.0;
-    ctx.globalAlpha = 0.45 + audio.mid * 0.35;
+    // Dynamic link rendering with drop intensity
+    const linkAlpha = Math.min(1.0, (0.45 + mid * 0.35 + beat * 0.2) * dropMultiplier);
+    ctx.strokeStyle = isDrop && palette.accentAlpha ? palette.accentAlpha(linkAlpha) : (palette.primaryAlpha ? palette.primaryAlpha(linkAlpha) : palette.primary);
+    ctx.lineWidth = (1.0 + snare * 0.8 + (isDrop ? 0.6 : 0));
 
     for (let i = 0; i < links.length; i++) {
         const [idA, idB] = links[i];
@@ -2239,31 +2656,61 @@ function renderCyberConstellation(ctx, nodes, links, time, audio, palette) {
         }
     }
 
+    // Dynamic frequency-mapped nodes
     for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
-        const pulse = Math.sin(time * 3.5 + i * 0.8) * 0.3 + 0.7;
-        const size = n.size * (pulse + audio.energy * 0.4);
+        const pulse = Math.sin(time * 3.5 + i * 0.8) * 0.25 + 0.75;
+
+        // Frequency mapping by anatomical position:
+        // Lower body (hips, tailBase, flanks) -> Bass
+        // Core (heart, spine) -> Mids
+        // Upper body (throat, shoulders) -> Treble & Snare
+        let freqBand = mid;
+        if (n.relY >= 35) {
+            freqBand = bass * 1.3 + beat * 0.6;
+        } else if (n.relY <= -20) {
+            freqBand = treble * 1.2 + snare * 0.8;
+        } else {
+            freqBand = mid * 1.1 + beat * 0.3;
+        }
+
+        const size = n.size * (pulse + freqBand * 0.5) * dropMultiplier;
 
         if (n.isHeart) {
-            const heartPulse = 1.0 + (audio.bass * 0.8);
-            const heartGrad = ctx.createRadialGradient(n.relX, n.relY, 1, n.relX, n.relY, 18 * heartPulse);
+            const heartPulse = (1.0 + bass * 0.9 + beat * 0.5) * dropMultiplier;
+            const heartRadius = 18 * heartPulse;
+
+            // Outer radiant corona
+            const heartGrad = ctx.createRadialGradient(n.relX, n.relY, 1, n.relX, n.relY, heartRadius);
             heartGrad.addColorStop(0, palette.core);
-            heartGrad.addColorStop(0.4, palette.accent);
+            heartGrad.addColorStop(0.35, palette.accentAlpha ? palette.accentAlpha(0.9) : palette.accent);
+            heartGrad.addColorStop(0.7, palette.primaryAlpha ? palette.primaryAlpha(0.4) : palette.primary);
             heartGrad.addColorStop(1, 'rgba(255, 0, 127, 0)');
 
             ctx.fillStyle = heartGrad;
-            ctx.globalAlpha = 0.85;
+            ctx.globalAlpha = Math.min(1.0, 0.85 + bass * 0.2);
             ctx.beginPath();
-            ctx.arc(n.relX, n.relY, 18 * heartPulse, 0, Math.PI * 2);
+            ctx.arc(n.relX, n.relY, heartRadius, 0, Math.PI * 2);
             ctx.fill();
 
+            // Inner intense pulsar core
             ctx.fillStyle = palette.core;
+            ctx.globalAlpha = 1.0;
             ctx.beginPath();
             ctx.arc(n.relX, n.relY, 4.5 * heartPulse, 0, Math.PI * 2);
             ctx.fill();
+
+            // Extra flash during drops or high beats
+            if (isDrop || beat > 0.7) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(n.relX, n.relY, 2.5 * heartPulse, 0, Math.PI * 2);
+                ctx.fill();
+            }
         } else {
-            ctx.fillStyle = palette.core;
-            ctx.globalAlpha = 0.8;
+            // Node color modulation according to frequency band
+            ctx.fillStyle = (freqBand > 0.45 || isDrop) ? palette.core : palette.accent;
+            ctx.globalAlpha = Math.min(1.0, 0.7 + freqBand * 0.3);
             ctx.beginPath();
             ctx.arc(n.relX, n.relY, size, 0, Math.PI * 2);
             ctx.fill();
@@ -2324,42 +2771,74 @@ function renderCyberBodyContours(ctx, audio, palette) {
 
 
 // --- Module: models/cyber/cyberWhiskers.js ---
-// src/models/cyber/cyberWhiskers.js - Audio-reactive vibrating cyber whiskers
+// src/models/cyber/cyberWhiskers.js - Audio-reactive vibrating cyber whiskers with multi-harmonic flex & snare response
 
 function renderCyberWhiskers(ctx, time, audio, palette) {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.strokeStyle = palette.primary;
-    ctx.lineWidth = 1.0;
 
-    const whiskerVibe = Math.sin(time * 12) * (audio.treble * 4.0);
+    const treble = audio.treble || 0;
+    const mid = audio.mid || 0;
+    const snare = audio.snareImpulse || 0;
+    const isDrop = audio.isDrop || false;
+    const dropMultiplier = isDrop ? 1.4 : 1.0;
+
+    // Multi-harmonic sensory vibration (fast treble flutter + crisp snare recoil + mid breathing)
+    const fastFlutter = Math.sin(time * 32.0) * (treble * 5.5 + snare * 6.0);
+    const midFlex = Math.sin(time * 11.0) * (mid * 2.5);
+    const vibe = (fastFlutter + midFlex) * dropMultiplier;
 
     const leftWhiskers = [
-        { startX: -14, startY: 14, endX: -48, endY: 8 + whiskerVibe },
-        { startX: -15, startY: 17, endX: -52, endY: 17 },
-        { startX: -14, startY: 20, endX: -46, endY: 26 - whiskerVibe }
+        { startX: -14, startY: 14, cpX: -32, cpY: 10 + vibe * 0.7, endX: -50, endY: 7 + vibe },
+        { startX: -15, startY: 17, cpX: -34, cpY: 17 + vibe * 0.3, endX: -55, endY: 17 + vibe * 0.4 },
+        { startX: -14, startY: 20, cpX: -32, cpY: 23 - vibe * 0.6, endX: -48, endY: 27 - vibe }
     ];
-    for (let i = 0; i < leftWhiskers.length; i++) {
-        const w = leftWhiskers[i];
-        ctx.globalAlpha = 0.5 + audio.treble * 0.4;
-        ctx.beginPath();
-        ctx.moveTo(w.startX, w.startY);
-        ctx.lineTo(w.endX, w.endY);
-        ctx.stroke();
-    }
 
     const rightWhiskers = [
-        { startX: 14, startY: 14, endX: 48, endY: 8 + whiskerVibe },
-        { startX: 15, startY: 17, endX: 52, endY: 17 },
-        { startX: 14, startY: 20, endX: 46, endY: 26 - whiskerVibe }
+        { startX: 14, startY: 14, cpX: 32, cpY: 10 + vibe * 0.7, endX: 50, endY: 7 + vibe },
+        { startX: 15, startY: 17, cpX: 34, cpY: 17 + vibe * 0.3, endX: 55, endY: 17 + vibe * 0.4 },
+        { startX: 14, startY: 20, cpX: 32, cpY: 23 - vibe * 0.6, endX: 48, endY: 27 - vibe }
     ];
-    for (let i = 0; i < rightWhiskers.length; i++) {
-        const w = rightWhiskers[i];
-        ctx.globalAlpha = 0.5 + audio.treble * 0.4;
+
+    const whiskerAlpha = Math.min(1.0, (0.55 + treble * 0.35 + snare * 0.3) * dropMultiplier);
+    const tipRadius = 1.0 + treble * 1.5 + snare * 2.0;
+
+    // Render left whiskers
+    for (let i = 0; i < leftWhiskers.length; i++) {
+        const w = leftWhiskers[i];
+        ctx.strokeStyle = palette.primaryAlpha ? palette.primaryAlpha(whiskerAlpha) : palette.primary;
+        ctx.lineWidth = 1.0 + snare * 0.6;
         ctx.beginPath();
         ctx.moveTo(w.startX, w.startY);
-        ctx.lineTo(w.endX, w.endY);
+        ctx.quadraticCurveTo(w.cpX, w.cpY, w.endX, w.endY);
         ctx.stroke();
+
+        // Neon tip on transients
+        if (treble > 0.3 || snare > 0.4 || isDrop) {
+            ctx.fillStyle = palette.core;
+            ctx.beginPath();
+            ctx.arc(w.endX, w.endY, tipRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Render right whiskers
+    for (let i = 0; i < rightWhiskers.length; i++) {
+        const w = rightWhiskers[i];
+        ctx.strokeStyle = palette.primaryAlpha ? palette.primaryAlpha(whiskerAlpha) : palette.primary;
+        ctx.lineWidth = 1.0 + snare * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(w.startX, w.startY);
+        ctx.quadraticCurveTo(w.cpX, w.cpY, w.endX, w.endY);
+        ctx.stroke();
+
+        // Neon tip on transients
+        if (treble > 0.3 || snare > 0.4 || isDrop) {
+            ctx.fillStyle = palette.core;
+            ctx.beginPath();
+            ctx.arc(w.endX, w.endY, tipRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     ctx.restore();
@@ -2367,7 +2846,7 @@ function renderCyberWhiskers(ctx, time, audio, palette) {
 
 
 // --- Module: models/cyber/cyberEyes.js ---
-// src/models/cyber/cyberEyes.js - Animated cyber cat eyes with audio-reactive pupils
+// src/models/cyber/cyberEyes.js - Animated cyber cat eyes with audio-reactive pupil dilation & drop radiance
 
 function renderCyberEyes(ctx, isBlinking, blinkProgress, audio, palette) {
     ctx.save();
@@ -2376,7 +2855,36 @@ function renderCyberEyes(ctx, isBlinking, blinkProgress, audio, palette) {
 
     const blink = isBlinking ? Math.sin(blinkProgress) : 0;
     const eyeHeightScale = Math.max(0.08, 1.0 - blink * 0.95);
-    const pupilWidth = 2.0 + audio.bass * 2.5;
+
+    const bass = audio.bass || 0;
+    const beat = audio.beatImpulse || 0;
+    const energy = audio.energy || 0.4;
+    const isDrop = audio.isDrop || false;
+
+    // Feline pupil dilation: from narrow slit on calm to large dilated aperture on bass/drops
+    const pupilDilate = Math.min(1.0, bass * 0.65 + beat * 0.45 + (isDrop ? 0.35 : 0));
+    const pupilWidth = 1.5 + pupilDilate * 4.2; // 1.5px (sharp feline slit) up to 5.7px (wide dilated hunt aperture)
+    const pupilHeight = 4.2 + pupilDilate * 0.6;
+
+    // Outer Ocular Halo Flare during high energy / drops
+    if (isDrop || energy > 0.65) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const haloRadius = 14 + (isDrop ? 8 : 0) + beat * 4;
+        const haloAlpha = isDrop ? 0.5 : 0.3;
+
+        [-14, 14].forEach(eyeX => {
+            const haloGrad = ctx.createRadialGradient(eyeX, 2, 2, eyeX, 2, haloRadius);
+            haloGrad.addColorStop(0, palette.core);
+            haloGrad.addColorStop(0.4, palette.accentAlpha ? palette.accentAlpha(haloAlpha) : palette.accent);
+            haloGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = haloGrad;
+            ctx.beginPath();
+            ctx.arc(eyeX, 2, haloRadius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+    }
 
     // Left Eye
     ctx.save();
@@ -2396,7 +2904,7 @@ function renderCyberEyes(ctx, isBlinking, blinkProgress, audio, palette) {
 
     ctx.fillStyle = '#010108';
     ctx.beginPath();
-    ctx.ellipse(0, 0, pupilWidth, 4.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, pupilWidth, pupilHeight, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#ffffff';
@@ -2423,7 +2931,7 @@ function renderCyberEyes(ctx, isBlinking, blinkProgress, audio, palette) {
 
     ctx.fillStyle = '#010108';
     ctx.beginPath();
-    ctx.ellipse(0, 0, pupilWidth, 4.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, pupilWidth, pupilHeight, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#ffffff';
@@ -2595,18 +3103,20 @@ class CyberCat {
             }
         }
 
-        if (time > this.nextTwitchTime) {
+        // Feline ear twitch reflexes on snare / claps or natural intervals
+        const snareTrigger = (audio.snareImpulse || 0) > 0.5;
+        if (snareTrigger || time > this.nextTwitchTime) {
             if (Math.random() > 0.5) {
-                this.leftEarTwitch = 0.08 + Math.random() * 0.08;
+                this.leftEarTwitch = 0.12 + Math.random() * 0.12;
             } else {
-                this.rightEarTwitch = -0.08 - Math.random() * 0.08;
+                this.rightEarTwitch = -0.12 - Math.random() * 0.12;
             }
-            this.nextTwitchTime = time + 1.8 + Math.random() * 3.5;
+            this.nextTwitchTime = time + 1.5 + Math.random() * 3.0;
         }
-        this.leftEarTwitch += (0 - this.leftEarTwitch) * (dt * 6.0);
-        this.rightEarTwitch += (0 - this.rightEarTwitch) * (dt * 6.0);
+        this.leftEarTwitch += (0 - this.leftEarTwitch) * (dt * 7.0);
+        this.rightEarTwitch += (0 - this.rightEarTwitch) * (dt * 7.0);
 
-        const earBeatBounce = audio.mid * 0.05;
+        const earBeatBounce = (audio.mid || 0) * 0.08 + (audio.snareImpulse || 0) * 0.06;
         this.currentLeftEarAngle = this.leftEarTwitch - earBeatBounce;
         this.currentRightEarAngle = this.rightEarTwitch + earBeatBounce;
     }
@@ -2614,11 +3124,25 @@ class CyberCat {
     render(ctx, centerX, centerY, scale, time, audio, palette, bgMode, width, height) {
         ctx.save();
         ctx.translate(centerX, centerY);
-        ctx.scale(scale, scale);
 
-        const breath = Math.sin(time * 2.0) * 2.0 * (1 + audio.energy * 0.5);
-        const bassBounce = audio.bass * 4.0;
+        const isDrop = !!audio.isDrop;
+        const dropMultiplier = isDrop ? 1.5 : 1.0;
+        const beat = audio.beatImpulse || 0;
+        const bass = audio.bass || 0;
+
+        // Feline squash & stretch scaling
+        const squashX = 1.0 + (beat * 0.08 + bass * 0.04) * dropMultiplier;
+        const squashY = 1.0 - (beat * 0.06) * dropMultiplier;
+        ctx.scale(scale * squashX, scale * squashY);
+
+        // Natural breath & springy bass bounce
+        const breath = Math.sin(time * 2.2) * 3.0 * (1 + (audio.energy || 0) * 0.6);
+        const bassBounce = (bass * 10.0 + beat * 14.0) * dropMultiplier;
         ctx.translate(0, -bassBounce + breath);
+
+        // Organic rhythm sway
+        const swayAngle = Math.sin(time * ((audio.bpm || 120) / 60) * Math.PI) * (0.015 + (audio.mid || 0) * 0.025);
+        ctx.rotate(swayAngle);
 
         renderCyberTail(ctx, this.tailPoints, this.tailSegments, time, audio, palette);
         renderCyberBodyAura(ctx, audio, palette);

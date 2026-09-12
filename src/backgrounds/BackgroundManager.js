@@ -70,9 +70,9 @@ class BackgroundManager {
         }
     }
 
-    spawnShockwave(x, y, maxRadius, color) {
-        if (this.shockwaves.length < 8) {
-            this.shockwaves.push(new Shockwave(x, y, maxRadius, color));
+    spawnShockwave(x, y, maxRadius, color, type = "kick") {
+        if (this.shockwaves.length < 12) {
+            this.shockwaves.push(new Shockwave(x, y, maxRadius, color, type));
         }
     }
 
@@ -84,7 +84,7 @@ class BackgroundManager {
         // 1. Stars update (if enabled)
         if (this.effects.stars) {
             for (let i = 0; i < this.stars.length; i++) {
-                this.stars[i].update(dt, w, h, audio.treble);
+                this.stars[i].update(dt, w, h, audio);
             }
         }
 
@@ -94,9 +94,14 @@ class BackgroundManager {
         }
 
         // 3. Shockwaves update (if enabled)
-        if (this.effects.shockwaves) {
-            if (audio.isBeat && audio.isPlaying && audio.bass > 0.45) {
-                this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.48, palette.shockwave);
+        if (this.effects.shockwaves && audio.isPlaying) {
+            // Kick shockwave (heavy bass ring)
+            if ((audio.isBeat && audio.bass > 0.45) || (audio.beatImpulse > 0.72)) {
+                this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.50, palette.shockwave, "kick");
+            }
+            // Snare shockwave (rapid thin ripple)
+            if (audio.snareImpulse > 0.65) {
+                this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.44, palette.accent, "snare");
             }
             for (let i = this.shockwaves.length - 1; i >= 0; i--) {
                 if (!this.shockwaves[i].update(dt)) {
@@ -145,21 +150,23 @@ class BackgroundManager {
         if (this.effects.stars) {
             ctx.globalCompositeOperation = "screen";
             for (let i = 0; i < this.stars.length; i++) {
-                this.stars[i].render(ctx, time, audio.treble, palette.core);
+                this.stars[i].render(ctx, time, audio, palette.core);
             }
         }
 
         // Layer 5: Concentric audio aura rings (subtle presence)
-        const auraRadius = 135 + (audio.bass || 0) * 30;
+        const isDrop = audio && audio.isDrop;
+        const dropMultiplier = isDrop ? 1.5 : 1.0;
+        const auraRadius = (135 + (audio.bass || 0) * 35) * dropMultiplier;
         ctx.globalCompositeOperation = "lighter";
-        ctx.strokeStyle = palette.primary;
-        ctx.lineWidth = 1.0;
-        ctx.globalAlpha = 0.15 + (audio.bass || 0) * 0.15;
+        ctx.strokeStyle = isDrop ? palette.accent : palette.primary;
+        ctx.lineWidth = 1.0 + (isDrop ? 0.8 : 0);
+        ctx.globalAlpha = Math.min(0.5, (0.15 + (audio.bass || 0) * 0.15) * dropMultiplier);
         ctx.beginPath();
         ctx.arc(catCenterX, catCenterY, auraRadius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Layer 6: Radial beat shockwaves (if enabled)
+        // Layer 6: Radial beat & snare shockwaves (if enabled)
         if (this.effects.shockwaves) {
             for (let i = 0; i < this.shockwaves.length; i++) {
                 this.shockwaves[i].render(ctx);

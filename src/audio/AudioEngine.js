@@ -1,5 +1,4 @@
 // src/audio/AudioEngine.js - Musical pulse & audio reactivity orchestrator
-
 class AudioEngine {
     constructor() {
         this.isPlaying = false;
@@ -21,6 +20,14 @@ class AudioEngine {
         this.beatCount = 0;
         this.lastBeatTime = 0;
 
+        // Measures & drops
+        this.isBar = false;
+        this.barCount = 0;
+        this.barPhase = 0;
+        this.isDrop = false;
+        this.sectionEnergy = 0.5;
+        this.snareImpulse = 0;
+
         // Aliases for multi-model compatibility
         this.mids = 0.1;
         this.highs = 0.1;
@@ -30,8 +37,9 @@ class AudioEngine {
         this.isBeatPulse = false;
         this.is4BeatPulse = false;
 
-        // Optional Web Audio API spectrum bridge
+        // Optional Web Audio API spectrum bridge & Spotify Analysis
         this.webAudio = new WebAudioBridge();
+        this.spotifyAnalysis = new SpotifyAnalysis();
 
         setupSpotifyHooks(this);
     }
@@ -49,9 +57,13 @@ class AudioEngine {
         const data = Spicetify.Player.data;
         if (data && data.item) {
             this.duration = data.item.duration ? data.item.duration.milliseconds : 180000;
-            this.trackUri = data.item.uri || "";
-            this.tempo = estimateTrackTempo(this.trackUri, data.item.name || "");
-            this.bpm = this.tempo;
+            const newUri = data.item.uri || "";
+            if (newUri && newUri !== this.trackUri) {
+                this.trackUri = newUri;
+                this.tempo = estimateTrackTempo(this.trackUri, data.item.name || "");
+                this.bpm = this.tempo;
+                this.spotifyAnalysis.load(this.trackUri);
+            }
         }
     }
 
@@ -77,10 +89,12 @@ class AudioEngine {
             this.beatImpulse = (this.isBeat ? 1.0 : 0.0) + this.energy * 0.4;
             this.isBeatPulse = this.isBeat;
             this.is4BeatPulse = this.isBeat && (this.beatCount % 4 === 0);
+            this.barPhase = (this.beatCount % 4) / 4;
+            this.snareImpulse = (this.beatCount % 2 === 1 && this.isBeat) ? 0.8 : (this.snareImpulse * 0.85);
             return;
         }
 
-        // 2. Otherwise sync with Spotify Player and algorithmic envelope
+        // 2. Sync playback progress with Spotify Player
         if (typeof Spicetify !== "undefined" && Spicetify.Player) {
             this.isPlaying = Spicetify.Player.isPlaying();
             const prog = Spicetify.Player.getProgress();
@@ -89,6 +103,41 @@ class AudioEngine {
             this.progress += (this.isPlaying ? dt * 1000 : 0);
         }
 
+        // 3. Check for authentic Spotify Audio Analysis data
+        const analysisData = this.isPlaying ? this.spotifyAnalysis.query(this.progress / 1000) : null;
+
+        if (analysisData) {
+            this.tempo = analysisData.bpm;
+            this.bpm = analysisData.bpm;
+            this.beatProgress = analysisData.beatProgress;
+            this.beatPhase = analysisData.beatPhase;
+            this.isBeat = analysisData.isBeat;
+            this.isBar = analysisData.isBar;
+            this.is4BeatPulse = analysisData.is4BeatPulse;
+            this.isBeatPulse = analysisData.isBeat;
+            this.beatCount = analysisData.beatCount;
+            this.barCount = analysisData.barCount;
+            this.barPhase = analysisData.barPhase;
+            this.isDrop = analysisData.isDrop;
+            this.sectionEnergy = analysisData.sectionEnergy;
+            this.snareImpulse = analysisData.snareImpulse;
+            this.beatImpulse = analysisData.beatImpulse;
+
+            if (this.isBeat) {
+                this.lastBeatTime = this.liveTime;
+            }
+
+            const smoothRate = analysisData.isBeat ? 0.4 : 0.22;
+            this.bass += (analysisData.bass - this.bass) * smoothRate;
+            this.mid += (analysisData.mid - this.mid) * (smoothRate * 0.85);
+            this.treble += (analysisData.treble - this.treble) * smoothRate;
+            this.energy += (analysisData.energy - this.energy) * smoothRate;
+            this.mids = this.mid;
+            this.highs = this.treble;
+            return;
+        }
+
+        // 4. Algorithmic fallback when analysis is unavailable
         const beatInterval = 60 / this.tempo;
         const t = this.isPlaying ? (this.progress / 1000) : (this.liveTime * 0.5);
         const beatPhase = (t % beatInterval) / beatInterval;

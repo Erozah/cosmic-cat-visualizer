@@ -37,6 +37,7 @@ JS_MODULES = [
 
     # 2. Audio Pulse & Envelope Engine (Spotify + Web Audio API)
     "audio/spotifyHooks.js",
+    "audio/spotifyAnalysis.js",
     "audio/tempoEstimator.js",
     "audio/envelopeFollower.js",
     "audio/WebAudioBridge.js",

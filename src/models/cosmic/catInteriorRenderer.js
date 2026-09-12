@@ -23,13 +23,15 @@ function renderCatInterior(ctx, p, landmarks, palette, time) {
     ctx.save();
     ctx.globalCompositeOperation = "screen";
 
+    const dropBloom = p.isDrop ? 1.45 : 1.0;
+    const heartPulseRadius = scaleY * (0.75 + beat * 0.35 * dropBloom + (p.mids || 0) * 0.2);
     const heartGlow = ctx.createRadialGradient(
         spineMid[0], spineMid[1] - scaleY * 0.2, 5,
-        spineMid[0], spineMid[1] - scaleY * 0.1, scaleY * 0.75
+        spineMid[0], spineMid[1] - scaleY * 0.1, heartPulseRadius
     );
-    heartGlow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-    heartGlow.addColorStop(0.25, palette.accentAlpha(0.95));
-    heartGlow.addColorStop(0.55, palette.primaryAlpha(0.75 + bass * 0.2));
+    heartGlow.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+    heartGlow.addColorStop(0.25, palette.accentAlpha(0.95 * dropBloom));
+    heartGlow.addColorStop(0.55, palette.primaryAlpha((0.75 + bass * 0.25) * dropBloom));
     heartGlow.addColorStop(0.85, palette.secondaryAlpha(0.40));
     heartGlow.addColorStop(1.0, "transparent");
 
@@ -50,15 +52,16 @@ function renderCatInterior(ctx, p, landmarks, palette, time) {
     ctx.fill();
 
     // 4. Luminous spine energy line with sparkling starlight
+    const spineLineWidth = (2.4 + beat * 1.8 + (p.mids || 0) * 1.2) * (p.isDrop ? 1.4 : 1.0);
     ctx.beginPath();
     ctx.moveTo(headCenter[0], headCenter[1] + 10);
-    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * 2.2) * 5, spineMid[1], baseCenter[0], baseCenter[1] - 8);
+    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * 2.2) * (5 + beat * 6), spineMid[1], baseCenter[0], baseCenter[1] - 8);
     ctx.strokeStyle = palette.accentAlpha(1.0);
-    ctx.lineWidth = 2.8;
+    ctx.lineWidth = spineLineWidth;
     ctx.stroke();
 
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = Math.max(1.0, spineLineWidth * 0.45);
     ctx.stroke();
 
     ctx.restore();

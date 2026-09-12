@@ -41,9 +41,11 @@ class CosmicFractals {
 
     update(dt, time, audioState, isPlaying = true) {
         const bpm = audioState.bpm || 120;
-        const mids = audioState.mids || 0;
+        const mids = audioState.mids || audioState.mid || 0;
+        const isDrop = audioState.isDrop || false;
 
-        const rotSpeed = isPlaying ? (0.12 + (bpm / 60) * 0.12 + mids * 0.35) : 0.025;
+        const dropSpeed = isDrop ? 2.4 : 1.0;
+        const rotSpeed = isPlaying ? ((0.12 + (bpm / 60) * 0.12 + mids * 0.35) * dropSpeed) : 0.025;
         this.rotationAngle += rotSpeed * dt;
     }
 
@@ -52,20 +54,23 @@ class CosmicFractals {
      */
     render(ctx, cx, cy, baseRadius, palette, audioState) {
         const bass = audioState.bass || 0;
-        const mids = audioState.mids || 0;
+        const mids = audioState.mids || audioState.mid || 0;
         const beat = audioState.beatImpulse || 0;
+        const snare = audioState.snareImpulse || 0;
         const energy = audioState.energy || 0.4;
+        const isDrop = audioState.isDrop || false;
+        const dropMultiplier = isDrop ? 1.25 : 1.0;
 
-        const fractalScale = baseRadius * (1.18 + bass * 0.18 + beat * 0.12);
-        const alphaBase = Math.min(0.55, (0.24 + energy * 0.20 + bass * 0.12) * 0.85);
+        const fractalScale = baseRadius * (1.18 + bass * 0.22 + beat * 0.14) * dropMultiplier;
+        const alphaBase = Math.min(0.60, (0.24 + energy * 0.22 + bass * 0.14 + (isDrop ? 0.15 : 0)) * 0.85);
 
         ctx.save();
         ctx.globalCompositeOperation = "screen";
         ctx.translate(cx, cy);
         ctx.rotate(this.rotationAngle);
 
-        // 1. Batched Celestial Outer Tick Marks Ring (Using precomputed table)
-        const outerTickRadius = fractalScale * 1.08;
+        // 1. Batched Celestial Outer Tick Marks Ring (With snare reactivity)
+        const outerTickRadius = fractalScale * (1.08 + snare * 0.06);
         const innerTickRadius = fractalScale * 1.03;
         const majorTickRadius = fractalScale * 0.99;
 
@@ -77,8 +82,8 @@ class CosmicFractals {
             ctx.moveTo(cos * rIn, sin * rIn);
             ctx.lineTo(cos * outerTickRadius, sin * outerTickRadius);
         }
-        ctx.strokeStyle = palette.accentAlpha(alphaBase * 0.75);
-        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = snare > 0.4 ? palette.core : palette.accentAlpha(alphaBase * (0.75 + snare * 0.4));
+        ctx.lineWidth = 1.0 + snare * 0.8;
         ctx.stroke();
 
         // 2. Concentric Sacred Harmonic Rings (Batched by style)
@@ -86,8 +91,8 @@ class CosmicFractals {
         ctx.beginPath();
         ctx.arc(0, 0, fractalScale * 1.08, 0, Math.PI * 2);
         ctx.arc(0, 0, fractalScale * 1.0, 0, Math.PI * 2);
-        ctx.strokeStyle = palette.accentAlpha(alphaBase * 0.75);
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = isDrop ? palette.core : palette.accentAlpha(alphaBase * 0.75);
+        ctx.lineWidth = 1.4 + (isDrop ? 0.8 : 0);
         ctx.stroke();
 
         // Inner harmonic rings
@@ -152,7 +157,7 @@ class CosmicFractals {
 
         // 5. Radiant Central Node
         const centralGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, fractalScale * 0.35);
-        centralGlow.addColorStop(0, `rgba(255, 255, 255, ${alphaBase * 0.65})`);
+        centralGlow.addColorStop(0, `rgba(255, 255, 255, ${alphaBase * (0.65 + (isDrop ? 0.35 : 0))})`);
         centralGlow.addColorStop(0.35, palette.accentAlpha(alphaBase * 0.55));
         centralGlow.addColorStop(0.8, palette.primaryAlpha(alphaBase * 0.25));
         centralGlow.addColorStop(1.0, "transparent");
