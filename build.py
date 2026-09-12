@@ -48,12 +48,12 @@ JS_MODULES = [
     "backgrounds/Shockwave.js",
     "backgrounds/CyberGrid.js",
     "backgrounds/SacredFractals.js",
+    "backgrounds/deckPlanks.js",
+    "backgrounds/deckLighting.js",
+    "backgrounds/WoodenDeck.js",
     "backgrounds/BackgroundManager.js",
 
     # 4. Cosmic Cat Model, Geometry & Physics (Unified Facade)
-    "models/cosmic/deckPlanks.js",
-    "models/cosmic/deckLighting.js",
-    "models/cosmic/WoodenDeck.js",
     "models/cosmic/tailPathBuilder.js",
     "models/cosmic/tailSparks.js",
     "models/cosmic/tailKinematics.js",

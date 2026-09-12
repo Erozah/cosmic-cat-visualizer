@@ -1,9 +1,8 @@
 // src/core/VisualizerEngine.js - Master Orchestrator for Cyberpunk & Cosmic Cat Visualizer (SOLID Architecture)
 
 class VisualizerEngine {
-    constructor(canvas, panel) {
+    constructor(canvas) {
         this.canvas = canvas;
-        this.panel = panel || null;
         this.ctx = canvas.getContext('2d', { alpha: false });
         this.dpr = window.devicePixelRatio || 1;
 
@@ -148,14 +147,6 @@ class VisualizerEngine {
 
     get isActive() {
         return this.isForeground;
-    }
-
-    get cyberCat() {
-        return this.models.cyber;
-    }
-
-    get cosmicCat() {
-        return this.models.cosmic;
     }
 
     // Exclusive Cat Model Selection (Activating one disables the other)

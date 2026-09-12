@@ -16,8 +16,3 @@ body.cyber-cat-visualizer-active #cyber-cat-canvas {
     display: block !important;
 }
 
-body.cyber-cat-fullscreen-active #cyber-cat-canvas {
-    z-index: 999999 !important;
-    pointer-events: auto !important;
-    cursor: pointer !important;
-}
