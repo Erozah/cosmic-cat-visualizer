@@ -52,10 +52,11 @@ function renderCatInterior(ctx, p, landmarks, palette, time) {
     ctx.fill();
 
     // 4. Luminous spine energy line with sparkling starlight
+    const spineWaveSpeed = 0.5 + ((p.bpm || 120) / 120) * 0.7 * (0.4 + (p.energy || 0.4) * 0.6);
     const spineLineWidth = (2.4 + beat * 1.8 + (p.mids || 0) * 1.2) * (p.isDrop ? 1.4 : 1.0);
     ctx.beginPath();
     ctx.moveTo(headCenter[0], headCenter[1] + 10);
-    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * 2.2) * (5 + beat * 6), spineMid[1], baseCenter[0], baseCenter[1] - 8);
+    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * spineWaveSpeed) * (3.0 + beat * 5), spineMid[1], baseCenter[0], baseCenter[1] - 8);
     ctx.strokeStyle = palette.accentAlpha(1.0);
     ctx.lineWidth = spineLineWidth;
     ctx.stroke();

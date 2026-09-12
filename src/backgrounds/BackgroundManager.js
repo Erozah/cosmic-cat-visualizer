@@ -95,12 +95,13 @@ class BackgroundManager {
 
         // 3. Shockwaves update (if enabled)
         if (this.effects.shockwaves && audio.isPlaying) {
-            // Kick shockwave (heavy bass ring)
-            if ((audio.isBeat && audio.bass > 0.45) || (audio.beatImpulse > 0.72)) {
+            const energy = audio.energy || 0.35;
+            // Kick shockwave (heavy bass ring, triggered on solid impacts, quiet on chill tracks)
+            if ((audio.isBeat && audio.bass > 0.52 && energy > 0.32) || (audio.beatImpulse > 0.78)) {
                 this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.50, palette.shockwave, "kick");
             }
-            // Snare shockwave (rapid thin ripple)
-            if (audio.snareImpulse > 0.65) {
+            // Snare shockwave (rapid thin ripple on true crisp transients)
+            if (audio.snareImpulse > 0.68 && energy > 0.32) {
                 this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.44, palette.accent, "snare");
             }
             for (let i = this.shockwaves.length - 1; i >= 0; i--) {

@@ -16,12 +16,18 @@ class CyberGrid {
     }
 
     update(dt, audio) {
-        const speed = (audio.isPlaying ? (45 + audio.energy * 65) : 15);
+        const energy = audio.energy || 0.35;
+        const tempoNorm = Math.max(0.4, Math.min(2.0, (audio.bpm || 120) / 120));
+        // Calm synthwave cruise on chill music, fast rush on intense music
+        const speed = audio.isPlaying !== false 
+            ? (14 + tempoNorm * 18 + energy * 50) 
+            : 8;
         this.offsetY = (this.offsetY + dt * speed) % 40;
 
+        const sparkleSpeedMult = 0.4 + energy * 0.6;
         for (let i = 0; i < this.sparkles.length; i++) {
             const sp = this.sparkles[i];
-            sp.y -= (sp.speedY * dt) / 500;
+            sp.y -= (sp.speedY * dt * sparkleSpeedMult) / 500;
             if (sp.y < 0) {
                 sp.y = 1.0;
                 sp.x = Math.random();

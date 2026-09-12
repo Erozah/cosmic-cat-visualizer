@@ -813,8 +813,9 @@ class CosmicStar {
         const isDrop = audio && typeof audio === "object" && audio.isDrop;
         const energy = audio && typeof audio === "object" && audio.energy ? audio.energy : 0.4;
 
-        const speedMult = isDrop ? 4.0 : (energy > 0.7 ? 1.8 : 1.0);
-        this.y += this.speedY * dt * (1 + treble * 0.4) * speedMult;
+        // Drift slowly like calm celestial dust on chill music; rush on drops
+        const speedMult = isDrop ? 4.0 : (energy > 0.7 ? 1.8 : (0.28 + energy * 0.72));
+        this.y += this.speedY * dt * (1 + treble * 0.3) * speedMult;
         if (this.y > h + 20) {
             this.reset(w, h);
         }
@@ -827,7 +828,8 @@ class CosmicStar {
         const bpm = audio && typeof audio === "object" && audio.bpm ? audio.bpm : 120;
 
         const isWarping = isDrop || (bpm >= 130 && energy > 0.65);
-        const twinkle = Math.sin(time * this.pulseSpeed + this.phase) * 0.3 + 0.7;
+        const twinkleSpeed = this.pulseSpeed * (0.4 + energy * 0.6);
+        const twinkle = Math.sin(time * twinkleSpeed + this.phase) * 0.25 + 0.75;
         const alpha = Math.min(1, this.baseAlpha * twinkle * (0.8 + treble * 0.6));
 
         if (isWarping) {
@@ -1026,12 +1028,18 @@ class CyberGrid {
     }
 
     update(dt, audio) {
-        const speed = (audio.isPlaying ? (45 + audio.energy * 65) : 15);
+        const energy = audio.energy || 0.35;
+        const tempoNorm = Math.max(0.4, Math.min(2.0, (audio.bpm || 120) / 120));
+        // Calm synthwave cruise on chill music, fast rush on intense music
+        const speed = audio.isPlaying !== false 
+            ? (14 + tempoNorm * 18 + energy * 50) 
+            : 8;
         this.offsetY = (this.offsetY + dt * speed) % 40;
 
+        const sparkleSpeedMult = 0.4 + energy * 0.6;
         for (let i = 0; i < this.sparkles.length; i++) {
             const sp = this.sparkles[i];
-            sp.y -= (sp.speedY * dt) / 500;
+            sp.y -= (sp.speedY * dt * sparkleSpeedMult) / 500;
             if (sp.y < 0) {
                 sp.y = 1.0;
                 sp.x = Math.random();
@@ -1159,10 +1167,15 @@ class CosmicFractals {
     update(dt, time, audioState, isPlaying = true) {
         const bpm = audioState.bpm || 120;
         const mids = audioState.mids || audioState.mid || 0;
+        const energy = audioState.energy || 0.35;
         const isDrop = audioState.isDrop || false;
 
         const dropSpeed = isDrop ? 2.4 : 1.0;
-        const rotSpeed = isPlaying ? ((0.12 + (bpm / 60) * 0.12 + mids * 0.35) * dropSpeed) : 0.025;
+        const tempoNorm = Math.max(0.4, Math.min(2.0, bpm / 120));
+        // Slow, majestic, meditative rotation on chill tracks; dynamic acceleration on drops
+        const rotSpeed = isPlaying 
+            ? ((0.025 + tempoNorm * 0.045 + mids * 0.08) * (0.35 + energy * 0.65) * dropSpeed) 
+            : 0.012;
         this.rotationAngle += rotSpeed * dt;
     }
 
@@ -1595,12 +1608,13 @@ class BackgroundManager {
 
         // 3. Shockwaves update (if enabled)
         if (this.effects.shockwaves && audio.isPlaying) {
-            // Kick shockwave (heavy bass ring)
-            if ((audio.isBeat && audio.bass > 0.45) || (audio.beatImpulse > 0.72)) {
+            const energy = audio.energy || 0.35;
+            // Kick shockwave (heavy bass ring, triggered on solid impacts, quiet on chill tracks)
+            if ((audio.isBeat && audio.bass > 0.52 && energy > 0.32) || (audio.beatImpulse > 0.78)) {
                 this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.50, palette.shockwave, "kick");
             }
-            // Snare shockwave (rapid thin ripple)
-            if (audio.snareImpulse > 0.65) {
+            // Snare shockwave (rapid thin ripple on true crisp transients)
+            if (audio.snareImpulse > 0.68 && energy > 0.32) {
                 this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.44, palette.accent, "snare");
             }
             for (let i = this.shockwaves.length - 1; i >= 0; i--) {
@@ -1806,15 +1820,16 @@ function updateTailKinematics(tail, anchorPoint, baseScale, audioState, dt, time
     const rootX = anchorPoint[0];
     const rootY = anchorPoint[1];
 
-    // 1. Natural Feline Sway Rhythm
-    const tempoHz = isPlaying ? Math.max(0.5, Math.min(2.5, (bpm / 60) * 0.45)) : 0.12;
-    const swaySpeed = isPlaying ? (tempoHz * (1.0 + energy * 0.4)) : 0.12;
+    // 1. Natural Feline Sway Rhythm (fluid, lazy sway on chill music, reactive on intense tracks)
+    const tempoNorm = Math.max(0.4, Math.min(2.0, bpm / 120));
+    const tempoHz = isPlaying ? (0.15 + tempoNorm * 0.35 * (0.35 + energy * 0.65)) : 0.10;
+    const swaySpeed = isPlaying ? (tempoHz * (0.75 + energy * 0.5)) : 0.10;
     tail.swayPhase += swaySpeed * dt;
 
-    // 2. Beat Deck Tap & Tip Twitch
-    if (isPlaying && beat > 0.4) {
-        tail.tipTwitch += (beat * 1.8) * (Math.sin(tail.swayPhase) > 0 ? 1 : -1);
-        tail.deckTapImpulse = Math.min(1.0, tail.deckTapImpulse + beat * 0.8);
+    // 2. Beat Deck Tap & Tip Twitch (only on energetic beats)
+    if (isPlaying && beat > 0.45 && energy > 0.3) {
+        tail.tipTwitch += (beat * 1.4 * energy) * (Math.sin(tail.swayPhase) > 0 ? 1 : -1);
+        tail.deckTapImpulse = Math.min(1.0, tail.deckTapImpulse + beat * 0.6 * energy);
     } else if (!isPlaying) {
         tail.tipTwitch = 0;
         tail.deckTapImpulse = 0;
@@ -1842,18 +1857,19 @@ function updateTailKinematics(tail, anchorPoint, baseScale, audioState, dt, time
     tail.nodes[0].y = rootY;
     tail.nodes[0].thickness = 11.0 * baseScale;
 
-    const maxSwayAngle = isPlaying ? (0.35 + energy * 0.25 + bass * 0.2) : 0.05;
+    // Sway amplitude scales softly with energy
+    const maxSwayAngle = isPlaying ? (0.16 + energy * 0.24 + bass * 0.15) : 0.05;
 
     for (let i = 1; i < tail.segmentCount; i++) {
         const frac = i / (tail.segmentCount - 1);
         
         // Feline S-curve harmonic wave
         const wavePhase = tail.swayPhase - frac * 2.2;
-        const horizontalSway = Math.sin(wavePhase) * maxSwayAngle * (frac * 1.3);
-        const secondaryHarmonic = isPlaying ? (Math.sin(wavePhase * 1.8) * 0.15 * frac) : 0;
+        const horizontalSway = Math.sin(wavePhase) * maxSwayAngle * (frac * 1.2);
+        const secondaryHarmonic = (isPlaying && energy > 0.35) ? (Math.sin(wavePhase * 1.6) * 0.10 * frac * energy) : 0;
 
         // Tip twitch & energetic whip
-        const tipCurl = tail.tipTwitch * Math.pow(frac, 2.5) * 1.4;
+        const tipCurl = tail.tipTwitch * Math.pow(frac, 2.5) * 1.2;
 
         // Target natural resting angle
         const baseDirAngle = Math.PI * 0.88;
@@ -1871,12 +1887,13 @@ function updateTailKinematics(tail, anchorPoint, baseScale, audioState, dt, time
 
         // Tip lifts gently off the deck when active
         if (isPlaying && frac > 0.75) {
-            const tipLift = Math.sin(time * 3 + frac * 4) * (6 * baseScale * highs) - (tail.deckTapImpulse * 8 * baseScale);
+            const tipSpeed = 0.8 + tempoNorm * 1.2 * (0.4 + energy * 0.6);
+            const tipLift = Math.sin(time * tipSpeed + frac * 4) * (4 * baseScale * highs * (0.3 + energy * 0.7)) - (tail.deckTapImpulse * 6 * baseScale);
             targetY += tipLift;
         }
 
-        // Smooth spring damping towards target
-        const blend = 0.38 + (1 - frac) * 0.25;
+        // Smooth spring damping towards target (cushioned and fluid)
+        const blend = 0.32 + (1 - frac) * 0.22;
         tail.nodes[i].x += (targetX - tail.nodes[i].x) * blend;
         tail.nodes[i].y += (targetY - tail.nodes[i].y) * blend;
 
@@ -2047,33 +2064,38 @@ function computeCatDeformation(cx, cy, width, height, audioState, time, deckY, i
     const isDrop = !!audioState?.isDrop;
     const snare = Number.isFinite(audioState?.snareImpulse) ? audioState.snareImpulse : 0.0;
 
-    // Peaceful resting breath or audio-reactive respiration
-    const breathSpeed = isPlaying ? (1.5 + (bpm / 60) * 0.5) : 0.8;
-    const breath = Math.sin(time * breathSpeed) * (isPlaying ? 0.035 : 0.012);
+    const energy = Number.isFinite(audioState?.energy) ? audioState.energy : 0.4;
+    const tempoNorm = Math.max(0.4, Math.min(2.0, bpm / 120));
+
+    // Peaceful resting breath or audio-reactive respiration (slow, calm cadence on chill tracks)
+    const breathSpeed = isPlaying ? (0.65 + tempoNorm * 0.5 * (0.35 + energy * 0.65)) : 0.4;
+    const breathAmp = isPlaying ? (0.018 + energy * 0.022) : 0.010;
+    const breath = Math.sin(time * breathSpeed) * breathAmp;
 
     // Dynamic Feline Squash & Stretch on beat impacts
-    // On kick impact: body compresses down (squash) and widens (stretchX)
     const dropMultiplier = isDrop ? 1.45 : 1.0;
-    const squashCompressY = isPlaying ? (-beat * 0.09 * dropMultiplier + bass * 0.05) : 0;
-    const stretchWidenX = isPlaying ? (beat * 0.12 * dropMultiplier + bass * 0.08) : 0;
+    const energyScale = 0.35 + energy * 0.65;
+    const squashCompressY = isPlaying ? (-beat * 0.07 * dropMultiplier * energyScale + bass * 0.04 * energyScale) : 0;
+    const stretchWidenX = isPlaying ? (beat * 0.09 * dropMultiplier * energyScale + bass * 0.05 * energyScale) : 0;
 
-    // High frequency micro-vibration on cymbal / hi-hat
-    const vibration = isPlaying ? Math.sin(time * 50) * highs * 0.018 : 0;
+    // High frequency micro-vibration on distinct cymbal / hi-hat attacks only (not on quiet ambient)
+    const vibration = (isPlaying && highs > 0.35) ? Math.sin(time * 35) * (highs - 0.35) * 0.015 : 0;
 
     const currentScaleX = (1.0 + breath + stretchWidenX + vibration) * (width * 0.5);
     const currentScaleY = (1.0 - breath * 0.5 + squashCompressY) * (height * 0.5);
 
-    // Spine organic swaying (amplified on melody & drops)
-    const spineSwaySpeed = isPlaying ? (bpm / 60) * 1.5 : 0.8;
+    // Spine organic swaying (slow, hypnotic, majestic on chill tracks)
+    const spineSwaySpeed = isPlaying ? (0.35 + tempoNorm * 0.45 * (0.4 + energy * 0.6)) : 0.25;
+    const spineSwayAmp = (0.012 + mids * 0.035 * dropMultiplier) * energyScale;
     const spineSway = isPlaying 
-        ? (Math.sin(time * spineSwaySpeed) * (0.025 + mids * 0.04 * dropMultiplier)) 
-        : (Math.sin(time * 0.8) * 0.005);
+        ? (Math.sin(time * spineSwaySpeed) * spineSwayAmp) 
+        : (Math.sin(time * 0.4) * 0.005);
 
     // Ear perk intensity on snare, claps, and high frequencies
-    const earPerk = isPlaying ? (highs * 0.08 + snare * 0.12 + beat * 0.06) : 0;
+    const earPerk = isPlaying ? (highs * 0.06 + snare * 0.10 + beat * 0.05) * energyScale : 0;
 
-    // Ground base firmly at deckY with dynamic springy bounce
-    const bounceOffset = isPlaying ? (-Math.sin((audioState?.beatProgress || 0) * Math.PI) * (4.0 * bass + 8.0 * beat) * dropMultiplier) : 0;
+    // Ground base firmly at deckY with dynamic springy bounce (gentle and cushioned on chill tracks)
+    const bounceOffset = isPlaying ? (-Math.sin((audioState?.beatProgress || 0) * Math.PI) * (2.5 * bass + 5.5 * beat) * dropMultiplier * energyScale) : 0;
     const actualCy = deckY ? (deckY - currentScaleY * 0.96 + bounceOffset) : (cy + bounceOffset);
 
     return {
@@ -2328,10 +2350,11 @@ function renderCatInterior(ctx, p, landmarks, palette, time) {
     ctx.fill();
 
     // 4. Luminous spine energy line with sparkling starlight
+    const spineWaveSpeed = 0.5 + ((p.bpm || 120) / 120) * 0.7 * (0.4 + (p.energy || 0.4) * 0.6);
     const spineLineWidth = (2.4 + beat * 1.8 + (p.mids || 0) * 1.2) * (p.isDrop ? 1.4 : 1.0);
     ctx.beginPath();
     ctx.moveTo(headCenter[0], headCenter[1] + 10);
-    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * 2.2) * (5 + beat * 6), spineMid[1], baseCenter[0], baseCenter[1] - 8);
+    ctx.quadraticCurveTo(spineMid[0] + Math.sin(time * spineWaveSpeed) * (3.0 + beat * 5), spineMid[1], baseCenter[0], baseCenter[1] - 8);
     ctx.strokeStyle = palette.accentAlpha(1.0);
     ctx.lineWidth = spineLineWidth;
     ctx.stroke();
@@ -2540,18 +2563,23 @@ function renderCyberTail(ctx, tailPoints, tailSegments, time, audio, palette) {
     ctx.save();
     const rootX = 0;
     const rootY = 78;
-    const swayFreq = 1.8 + (audio.isPlaying ? audio.tempo / 120 : 0.8);
-    const swayAmp = 42 + audio.bass * 25;
+    const energy = audio.energy || 0.35;
+    const tempoNorm = Math.max(0.4, Math.min(2.0, (audio.bpm || audio.tempo || 120) / 120));
+    const isPlaying = audio.isPlaying !== false;
+
+    // Slow, lazy cyber tail sway on chill songs (0.15 - 0.25 Hz)
+    const swayFreq = isPlaying ? (0.65 + tempoNorm * 0.45 * (0.35 + energy * 0.65)) : 0.35;
+    const swayAmp = isPlaying ? (16 + energy * 20 + (audio.bass || 0) * 16) : 12;
 
     ctx.beginPath();
     ctx.moveTo(rootX, rootY);
 
     for (let i = 0; i < tailSegments; i++) {
         const frac = (i + 1) / tailSegments;
-        const wave = Math.sin(time * swayFreq - frac * 3.2);
-        const curl = Math.pow(frac, 1.4) * (swayAmp * wave);
-        const segX = rootX + curl + Math.sin(frac * Math.PI) * 25;
-        const segY = rootY + frac * 65 - Math.pow(frac, 2) * 20;
+        const wave = Math.sin(time * swayFreq - frac * 2.5);
+        const curl = Math.pow(frac, 1.3) * (swayAmp * wave);
+        const segX = rootX + curl + Math.sin(frac * Math.PI) * (15 + energy * 10);
+        const segY = rootY + frac * 65 - Math.pow(frac, 2) * 18;
 
         tailPoints[i] = { x: segX, y: segY };
         ctx.lineTo(segX, segY);
@@ -2559,7 +2587,7 @@ function renderCyberTail(ctx, tailPoints, tailSegments, time, audio, palette) {
 
     ctx.globalCompositeOperation = 'screen';
     ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = 3.5 + audio.bass * 1.5;
+    ctx.lineWidth = 3.0 + (audio.bass || 0) * 1.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
@@ -2569,7 +2597,9 @@ function renderCyberTail(ctx, tailPoints, tailSegments, time, audio, palette) {
     ctx.lineWidth = 1.4;
     ctx.stroke();
 
-    const pulsePos = (time * 1.5) % 1.0;
+    // Data pulse along tail spine: relaxed cruise on chill songs
+    const pulseSpeed = 0.5 + tempoNorm * 0.5 * (0.4 + energy * 0.6);
+    const pulsePos = (time * pulseSpeed) % 1.0;
     const pulseIndex = Math.min(tailSegments - 1, Math.floor(pulsePos * tailSegments));
     const pulsePt = tailPoints[pulseIndex];
     if (pulsePt) {
@@ -2656,10 +2686,14 @@ function renderCyberConstellation(ctx, nodes, links, time, audio, palette) {
         }
     }
 
-    // Dynamic frequency-mapped nodes
+    // Dynamic frequency-mapped nodes (slow celestial shimmer on chill music)
+    const energy = audio.energy || 0.35;
+    const tempoNorm = Math.max(0.4, Math.min(2.0, (audio.bpm || 120) / 120));
+    const nodePulseSpeed = 0.8 + tempoNorm * 0.6 * (0.35 + energy * 0.65);
+
     for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
-        const pulse = Math.sin(time * 3.5 + i * 0.8) * 0.25 + 0.75;
+        const pulse = Math.sin(time * nodePulseSpeed + i * 0.8) * 0.18 + 0.82;
 
         // Frequency mapping by anatomical position:
         // Lower body (hips, tailBase, flanks) -> Bass
@@ -2780,13 +2814,17 @@ function renderCyberWhiskers(ctx, time, audio, palette) {
     const treble = audio.treble || 0;
     const mid = audio.mid || 0;
     const snare = audio.snareImpulse || 0;
+    const energy = audio.energy || 0.35;
+    const energyScale = 0.35 + energy * 0.65;
     const isDrop = audio.isDrop || false;
     const dropMultiplier = isDrop ? 1.4 : 1.0;
 
-    // Multi-harmonic sensory vibration (fast treble flutter + crisp snare recoil + mid breathing)
-    const fastFlutter = Math.sin(time * 32.0) * (treble * 5.5 + snare * 6.0);
-    const midFlex = Math.sin(time * 11.0) * (mid * 2.5);
-    const vibe = (fastFlutter + midFlex) * dropMultiplier;
+    // Gentle slow breathing flex on calm music; rapid sensory flutter only on distinct treble/snare transients
+    const fastFlutter = (treble > 0.38 || snare > 0.45) 
+        ? Math.sin(time * 24.0) * (Math.max(0, treble - 0.38) * 3.5 + snare * 4.0) 
+        : 0;
+    const slowBreath = Math.sin(time * 1.6) * (mid * 1.2 * energyScale);
+    const vibe = (fastFlutter + slowBreath) * dropMultiplier;
 
     const leftWhiskers = [
         { startX: -14, startY: 14, cpX: -32, cpY: 10 + vibe * 0.7, endX: -50, endY: 7 + vibe },
@@ -3104,19 +3142,21 @@ class CyberCat {
         }
 
         // Feline ear twitch reflexes on snare / claps or natural intervals
-        const snareTrigger = (audio.snareImpulse || 0) > 0.5;
-        if (snareTrigger || time > this.nextTwitchTime) {
-            if (Math.random() > 0.5) {
-                this.leftEarTwitch = 0.12 + Math.random() * 0.12;
-            } else {
-                this.rightEarTwitch = -0.12 - Math.random() * 0.12;
-            }
-            this.nextTwitchTime = time + 1.5 + Math.random() * 3.0;
-        }
-        this.leftEarTwitch += (0 - this.leftEarTwitch) * (dt * 7.0);
-        this.rightEarTwitch += (0 - this.rightEarTwitch) * (dt * 7.0);
+        const isPlaying = audio.isPlaying !== false;
+        const energy = audio.energy || 0.35;
+        const energyScale = 0.35 + energy * 0.65;
 
-        const earBeatBounce = (audio.mid || 0) * 0.08 + (audio.snareImpulse || 0) * 0.06;
+        // Snare / high transient reflex twitch (attenuated on quiet chill music)
+        const snare = audio.snareImpulse || 0;
+        if (snare > 0.45 && energy > 0.3) {
+            this.leftEarTwitch = (Math.random() - 0.5) * 0.35 * snare * energyScale;
+            this.rightEarTwitch = (Math.random() - 0.5) * 0.35 * snare * energyScale;
+        } else {
+            this.leftEarTwitch *= Math.pow(0.88, dt * 60);
+            this.rightEarTwitch *= Math.pow(0.88, dt * 60);
+        }
+
+        const earBeatBounce = ((audio.mid || 0) * 0.04 + (audio.snareImpulse || 0) * 0.05) * energyScale;
         this.currentLeftEarAngle = this.leftEarTwitch - earBeatBounce;
         this.currentRightEarAngle = this.rightEarTwitch + earBeatBounce;
     }
@@ -3125,23 +3165,28 @@ class CyberCat {
         ctx.save();
         ctx.translate(centerX, centerY);
 
+        const energy = audio.energy || 0.35;
+        const energyScale = 0.35 + energy * 0.65;
+        const tempoNorm = Math.max(0.4, Math.min(2.0, (audio.bpm || 120) / 120));
         const isDrop = !!audio.isDrop;
         const dropMultiplier = isDrop ? 1.5 : 1.0;
         const beat = audio.beatImpulse || 0;
         const bass = audio.bass || 0;
 
-        // Feline squash & stretch scaling
-        const squashX = 1.0 + (beat * 0.08 + bass * 0.04) * dropMultiplier;
-        const squashY = 1.0 - (beat * 0.06) * dropMultiplier;
+        // Feline squash & stretch scaling (cushioned on chill music)
+        const squashX = 1.0 + (beat * 0.06 + bass * 0.03) * dropMultiplier * energyScale;
+        const squashY = 1.0 - (beat * 0.045) * dropMultiplier * energyScale;
         ctx.scale(scale * squashX, scale * squashY);
 
-        // Natural breath & springy bass bounce
-        const breath = Math.sin(time * 2.2) * 3.0 * (1 + (audio.energy || 0) * 0.6);
-        const bassBounce = (bass * 10.0 + beat * 14.0) * dropMultiplier;
+        // Natural breath & springy bass bounce (slow, deep breathing on chill music)
+        const breathFreq = 0.65 + tempoNorm * 0.45 * (0.35 + energy * 0.65);
+        const breath = Math.sin(time * breathFreq) * (1.6 + energy * 2.0);
+        const bassBounce = (bass * 5.0 + beat * 7.5) * dropMultiplier * energyScale;
         ctx.translate(0, -bassBounce + breath);
 
-        // Organic rhythm sway
-        const swayAngle = Math.sin(time * ((audio.bpm || 120) / 60) * Math.PI) * (0.015 + (audio.mid || 0) * 0.025);
+        // Organic rhythm sway (gentle, hypnotic posture sway)
+        const swayFreq = 0.35 + tempoNorm * 0.45 * (0.4 + energy * 0.6);
+        const swayAngle = Math.sin(time * swayFreq) * ((0.008 + (audio.mid || 0) * 0.016) * energyScale);
         ctx.rotate(swayAngle);
 
         renderCyberTail(ctx, this.tailPoints, this.tailSegments, time, audio, palette);

@@ -35,10 +35,14 @@ function renderCyberConstellation(ctx, nodes, links, time, audio, palette) {
         }
     }
 
-    // Dynamic frequency-mapped nodes
+    // Dynamic frequency-mapped nodes (slow celestial shimmer on chill music)
+    const energy = audio.energy || 0.35;
+    const tempoNorm = Math.max(0.4, Math.min(2.0, (audio.bpm || 120) / 120));
+    const nodePulseSpeed = 0.8 + tempoNorm * 0.6 * (0.35 + energy * 0.65);
+
     for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
-        const pulse = Math.sin(time * 3.5 + i * 0.8) * 0.25 + 0.75;
+        const pulse = Math.sin(time * nodePulseSpeed + i * 0.8) * 0.18 + 0.82;
 
         // Frequency mapping by anatomical position:
         // Lower body (hips, tailBase, flanks) -> Bass

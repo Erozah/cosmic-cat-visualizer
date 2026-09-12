@@ -42,10 +42,15 @@ class CosmicFractals {
     update(dt, time, audioState, isPlaying = true) {
         const bpm = audioState.bpm || 120;
         const mids = audioState.mids || audioState.mid || 0;
+        const energy = audioState.energy || 0.35;
         const isDrop = audioState.isDrop || false;
 
         const dropSpeed = isDrop ? 2.4 : 1.0;
-        const rotSpeed = isPlaying ? ((0.12 + (bpm / 60) * 0.12 + mids * 0.35) * dropSpeed) : 0.025;
+        const tempoNorm = Math.max(0.4, Math.min(2.0, bpm / 120));
+        // Slow, majestic, meditative rotation on chill tracks; dynamic acceleration on drops
+        const rotSpeed = isPlaying 
+            ? ((0.025 + tempoNorm * 0.045 + mids * 0.08) * (0.35 + energy * 0.65) * dropSpeed) 
+            : 0.012;
         this.rotationAngle += rotSpeed * dt;
     }
 

@@ -7,13 +7,17 @@ function renderCyberWhiskers(ctx, time, audio, palette) {
     const treble = audio.treble || 0;
     const mid = audio.mid || 0;
     const snare = audio.snareImpulse || 0;
+    const energy = audio.energy || 0.35;
+    const energyScale = 0.35 + energy * 0.65;
     const isDrop = audio.isDrop || false;
     const dropMultiplier = isDrop ? 1.4 : 1.0;
 
-    // Multi-harmonic sensory vibration (fast treble flutter + crisp snare recoil + mid breathing)
-    const fastFlutter = Math.sin(time * 32.0) * (treble * 5.5 + snare * 6.0);
-    const midFlex = Math.sin(time * 11.0) * (mid * 2.5);
-    const vibe = (fastFlutter + midFlex) * dropMultiplier;
+    // Gentle slow breathing flex on calm music; rapid sensory flutter only on distinct treble/snare transients
+    const fastFlutter = (treble > 0.38 || snare > 0.45) 
+        ? Math.sin(time * 24.0) * (Math.max(0, treble - 0.38) * 3.5 + snare * 4.0) 
+        : 0;
+    const slowBreath = Math.sin(time * 1.6) * (mid * 1.2 * energyScale);
+    const vibe = (fastFlutter + slowBreath) * dropMultiplier;
 
     const leftWhiskers = [
         { startX: -14, startY: 14, cpX: -32, cpY: 10 + vibe * 0.7, endX: -50, endY: 7 + vibe },

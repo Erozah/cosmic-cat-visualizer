@@ -10,15 +10,16 @@ function updateTailKinematics(tail, anchorPoint, baseScale, audioState, dt, time
     const rootX = anchorPoint[0];
     const rootY = anchorPoint[1];
 
-    // 1. Natural Feline Sway Rhythm
-    const tempoHz = isPlaying ? Math.max(0.5, Math.min(2.5, (bpm / 60) * 0.45)) : 0.12;
-    const swaySpeed = isPlaying ? (tempoHz * (1.0 + energy * 0.4)) : 0.12;
+    // 1. Natural Feline Sway Rhythm (fluid, lazy sway on chill music, reactive on intense tracks)
+    const tempoNorm = Math.max(0.4, Math.min(2.0, bpm / 120));
+    const tempoHz = isPlaying ? (0.15 + tempoNorm * 0.35 * (0.35 + energy * 0.65)) : 0.10;
+    const swaySpeed = isPlaying ? (tempoHz * (0.75 + energy * 0.5)) : 0.10;
     tail.swayPhase += swaySpeed * dt;
 
-    // 2. Beat Deck Tap & Tip Twitch
-    if (isPlaying && beat > 0.4) {
-        tail.tipTwitch += (beat * 1.8) * (Math.sin(tail.swayPhase) > 0 ? 1 : -1);
-        tail.deckTapImpulse = Math.min(1.0, tail.deckTapImpulse + beat * 0.8);
+    // 2. Beat Deck Tap & Tip Twitch (only on energetic beats)
+    if (isPlaying && beat > 0.45 && energy > 0.3) {
+        tail.tipTwitch += (beat * 1.4 * energy) * (Math.sin(tail.swayPhase) > 0 ? 1 : -1);
+        tail.deckTapImpulse = Math.min(1.0, tail.deckTapImpulse + beat * 0.6 * energy);
     } else if (!isPlaying) {
         tail.tipTwitch = 0;
         tail.deckTapImpulse = 0;
@@ -46,18 +47,19 @@ function updateTailKinematics(tail, anchorPoint, baseScale, audioState, dt, time
     tail.nodes[0].y = rootY;
     tail.nodes[0].thickness = 11.0 * baseScale;
 
-    const maxSwayAngle = isPlaying ? (0.35 + energy * 0.25 + bass * 0.2) : 0.05;
+    // Sway amplitude scales softly with energy
+    const maxSwayAngle = isPlaying ? (0.16 + energy * 0.24 + bass * 0.15) : 0.05;
 
     for (let i = 1; i < tail.segmentCount; i++) {
         const frac = i / (tail.segmentCount - 1);
         
         // Feline S-curve harmonic wave
         const wavePhase = tail.swayPhase - frac * 2.2;
-        const horizontalSway = Math.sin(wavePhase) * maxSwayAngle * (frac * 1.3);
-        const secondaryHarmonic = isPlaying ? (Math.sin(wavePhase * 1.8) * 0.15 * frac) : 0;
+        const horizontalSway = Math.sin(wavePhase) * maxSwayAngle * (frac * 1.2);
+        const secondaryHarmonic = (isPlaying && energy > 0.35) ? (Math.sin(wavePhase * 1.6) * 0.10 * frac * energy) : 0;
 
         // Tip twitch & energetic whip
-        const tipCurl = tail.tipTwitch * Math.pow(frac, 2.5) * 1.4;
+        const tipCurl = tail.tipTwitch * Math.pow(frac, 2.5) * 1.2;
 
         // Target natural resting angle
         const baseDirAngle = Math.PI * 0.88;
@@ -75,12 +77,13 @@ function updateTailKinematics(tail, anchorPoint, baseScale, audioState, dt, time
 
         // Tip lifts gently off the deck when active
         if (isPlaying && frac > 0.75) {
-            const tipLift = Math.sin(time * 3 + frac * 4) * (6 * baseScale * highs) - (tail.deckTapImpulse * 8 * baseScale);
+            const tipSpeed = 0.8 + tempoNorm * 1.2 * (0.4 + energy * 0.6);
+            const tipLift = Math.sin(time * tipSpeed + frac * 4) * (4 * baseScale * highs * (0.3 + energy * 0.7)) - (tail.deckTapImpulse * 6 * baseScale);
             targetY += tipLift;
         }
 
-        // Smooth spring damping towards target
-        const blend = 0.38 + (1 - frac) * 0.25;
+        // Smooth spring damping towards target (cushioned and fluid)
+        const blend = 0.32 + (1 - frac) * 0.22;
         tail.nodes[i].x += (targetX - tail.nodes[i].x) * blend;
         tail.nodes[i].y += (targetY - tail.nodes[i].y) * blend;
 

@@ -22,8 +22,9 @@ class CosmicStar {
         const isDrop = audio && typeof audio === "object" && audio.isDrop;
         const energy = audio && typeof audio === "object" && audio.energy ? audio.energy : 0.4;
 
-        const speedMult = isDrop ? 4.0 : (energy > 0.7 ? 1.8 : 1.0);
-        this.y += this.speedY * dt * (1 + treble * 0.4) * speedMult;
+        // Drift slowly like calm celestial dust on chill music; rush on drops
+        const speedMult = isDrop ? 4.0 : (energy > 0.7 ? 1.8 : (0.28 + energy * 0.72));
+        this.y += this.speedY * dt * (1 + treble * 0.3) * speedMult;
         if (this.y > h + 20) {
             this.reset(w, h);
         }
@@ -36,7 +37,8 @@ class CosmicStar {
         const bpm = audio && typeof audio === "object" && audio.bpm ? audio.bpm : 120;
 
         const isWarping = isDrop || (bpm >= 130 && energy > 0.65);
-        const twinkle = Math.sin(time * this.pulseSpeed + this.phase) * 0.3 + 0.7;
+        const twinkleSpeed = this.pulseSpeed * (0.4 + energy * 0.6);
+        const twinkle = Math.sin(time * twinkleSpeed + this.phase) * 0.25 + 0.75;
         const alpha = Math.min(1, this.baseAlpha * twinkle * (0.8 + treble * 0.6));
 
         if (isWarping) {
