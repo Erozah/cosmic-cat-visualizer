@@ -1,10 +1,7 @@
-// src/backgrounds/BackgroundManager.js - Orchestrates switchable backgrounds (Stars, Grid, Fractals, Nebula, Minimal)
+// src/backgrounds/BackgroundManager.js - Composable background layers & independent visual effects
 
 class BackgroundManager {
     constructor() {
-        this.modes = ['stars', 'grid', 'fractals', 'nebula', 'minimal'];
-        this.mode = 'stars';
-
         this.stars = [];
         this.shockwaves = [];
         this.maxStars = 95;
@@ -12,18 +9,58 @@ class BackgroundManager {
 
         this.grid = new CyberGrid();
         this.nebula = new CosmicNebula();
+
+        // Independent composable visual layers (can be toggled ON/OFF without affecting others)
+        this.effects = {
+            stars: true,        // Particules & Étoiles célestes
+            fractals: true,     // Mandalas sacrés rotatifs
+            nebula: true,       // Nébuleuse atmosphérique volumétrique
+            shockwaves: true,   // Ondes de choc radiales sur le beat
+            grid: false,        // Grille synthwave 3D en perspective
+            deck: true          // Plateforme deck en bois (Cosmic Cat)
+        };
+
+        this.loadSettings();
     }
 
-    setMode(mode) {
-        if (this.modes.includes(mode)) {
-            this.mode = mode;
+    loadSettings() {
+        try {
+            if (typeof localStorage !== "undefined") {
+                const saved = localStorage.getItem("cosmic-cat-effects");
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(this.effects, parsed);
+                }
+            }
+        } catch (e) {}
+    }
+
+    saveSettings() {
+        try {
+            if (typeof localStorage !== "undefined") {
+                localStorage.setItem("cosmic-cat-effects", JSON.stringify(this.effects));
+            }
+        } catch (e) {}
+    }
+
+    setEffect(name, enabled) {
+        if (name in this.effects) {
+            this.effects[name] = !!enabled;
+            this.saveSettings();
         }
+        return this.effects[name];
     }
 
-    nextMode() {
-        const idx = this.modes.indexOf(this.mode);
-        this.mode = this.modes[(idx + 1) % this.modes.length];
-        return this.mode;
+    toggleEffect(name) {
+        if (name in this.effects) {
+            this.effects[name] = !this.effects[name];
+            this.saveSettings();
+        }
+        return this.effects[name];
+    }
+
+    getEffect(name) {
+        return !!this.effects[name];
     }
 
     initStars(w, h) {
@@ -44,17 +81,20 @@ class BackgroundManager {
     }
 
     update(dt, w, h, audio, palette, catCenterX, catCenterY) {
-        const isStarfieldActive = (this.mode === 'stars' || this.mode === 'fractals' || this.mode === 'nebula');
-
-        if (isStarfieldActive) {
+        // 1. Stars update (if enabled)
+        if (this.effects.stars) {
             for (let i = 0; i < this.stars.length; i++) {
                 this.stars[i].update(dt, w, h, audio.treble);
             }
         }
 
-        if (this.mode === 'stars' || this.mode === 'nebula') {
+        // 2. Nebula update (if enabled)
+        if (this.effects.nebula) {
             this.nebula.update(dt, audio.liveTime || 0, audio, audio.isPlaying);
+        }
 
+        // 3. Shockwaves update (if enabled)
+        if (this.effects.shockwaves) {
             if (audio.isBeat && audio.isPlaying && audio.bass > 0.45) {
                 this.spawnShockwave(catCenterX, catCenterY, Math.min(w, h) * 0.48, palette.shockwave);
             }
@@ -63,7 +103,10 @@ class BackgroundManager {
                     this.shockwaves.splice(i, 1);
                 }
             }
-        } else if (this.mode === 'grid') {
+        }
+
+        // 4. Cyber 3D Grid update (if enabled)
+        if (this.effects.grid) {
             this.grid.update(dt, audio);
         }
     }
@@ -71,7 +114,7 @@ class BackgroundManager {
     render(ctx, w, h, time, audio, palette, catCenterX, catCenterY, fractalsInstance = null) {
         ctx.save();
 
-        // 1. Deep Space Base Background
+        // Base Celestial Void
         const bgGrad = ctx.createRadialGradient(
             catCenterX, catCenterY, 30,
             catCenterX, catCenterY, Math.max(w, h) * 0.75
@@ -81,91 +124,46 @@ class BackgroundManager {
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, w, h);
 
-        // 2. Branch by background mode
-        if (this.mode === 'stars') {
-            // Starfield with diffraction spikes
-            ctx.globalCompositeOperation = "screen";
-            for (let i = 0; i < this.stars.length; i++) {
-                this.stars[i].render(ctx, time, audio.treble, palette.core);
-            }
-
-            // Audio reactive aura rings
-            const auraRadius = 140 + (audio.bass || 0) * 35;
-            ctx.globalCompositeOperation = "lighter";
-            ctx.strokeStyle = palette.primary;
-            ctx.lineWidth = 1.2;
-            ctx.globalAlpha = 0.18 + (audio.bass || 0) * 0.18;
-            ctx.beginPath();
-            ctx.arc(catCenterX, catCenterY, auraRadius, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.strokeStyle = palette.accent;
-            ctx.lineWidth = 0.8;
-            ctx.globalAlpha = 0.12 + (audio.mid || 0) * 0.15;
-            ctx.beginPath();
-            ctx.arc(catCenterX, catCenterY, auraRadius * 0.7, 0, Math.PI * 2);
-            ctx.stroke();
-
-            // Active shockwaves
-            for (let i = 0; i < this.shockwaves.length; i++) {
-                this.shockwaves[i].render(ctx);
-            }
-        } else if (this.mode === 'nebula') {
-            // Volumetric Nebula Clouds + Stars (Heritage Legacy)
-            this.nebula.render(ctx, w, h, catCenterX, catCenterY, audio, palette, time);
-
-            ctx.globalCompositeOperation = "screen";
-            for (let i = 0; i < this.stars.length; i++) {
-                this.stars[i].render(ctx, time, audio.treble, palette.core);
-            }
-
-            for (let i = 0; i < this.shockwaves.length; i++) {
-                this.shockwaves[i].render(ctx);
-            }
-        } else if (this.mode === 'grid') {
-            // Synthwave cyber grid
+        // Layer 1: Cyber 3D Grid Floor (if enabled)
+        if (this.effects.grid) {
             const horizonY = h * 0.68;
             this.grid.render(ctx, w, h, horizonY, audio, palette);
+        }
 
-            // Subtle upper sky aura
-            const skyAura = 120 + (audio.bass || 0) * 25;
-            ctx.save();
-            ctx.globalCompositeOperation = "screen";
-            ctx.strokeStyle = palette.primary;
-            ctx.lineWidth = 1.2;
-            ctx.globalAlpha = 0.2 + (audio.bass || 0) * 0.2;
-            ctx.beginPath();
-            ctx.arc(catCenterX, catCenterY - 30, skyAura, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-        } else if (this.mode === 'fractals') {
-            // Sacred Geometry Mandalas + Stars
+        // Layer 2: Volumetric Nebula & Atmospheric Clouds (if enabled)
+        if (this.effects.nebula) {
+            this.nebula.render(ctx, w, h, catCenterX, catCenterY, audio, palette, time);
+        }
+
+        // Layer 3: Sacred Fractals Mandalas (if enabled)
+        if (this.effects.fractals && fractalsInstance) {
+            const baseRad = Math.min(w, h) * 0.26;
+            fractalsInstance.render(ctx, catCenterX, catCenterY, baseRad, palette, audio);
+        }
+
+        // Layer 4: Stars & Particle field (if enabled)
+        if (this.effects.stars) {
             ctx.globalCompositeOperation = "screen";
             for (let i = 0; i < this.stars.length; i++) {
                 this.stars[i].render(ctx, time, audio.treble, palette.core);
             }
+        }
 
-            if (fractalsInstance) {
-                const baseRad = Math.min(w, h) * 0.26;
-                fractalsInstance.render(ctx, catCenterX, catCenterY, baseRad, palette, audio);
+        // Layer 5: Concentric audio aura rings (subtle presence)
+        const auraRadius = 135 + (audio.bass || 0) * 30;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = palette.primary;
+        ctx.lineWidth = 1.0;
+        ctx.globalAlpha = 0.15 + (audio.bass || 0) * 0.15;
+        ctx.beginPath();
+        ctx.arc(catCenterX, catCenterY, auraRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Layer 6: Radial beat shockwaves (if enabled)
+        if (this.effects.shockwaves) {
+            for (let i = 0; i < this.shockwaves.length; i++) {
+                this.shockwaves[i].render(ctx);
             }
-        } else if (this.mode === 'minimal') {
-            // Minimalist Void: Pure abyss with clean laser aura
-            ctx.globalCompositeOperation = "lighter";
-            const auraR = 125 + (audio.bass || 0) * 20;
-            ctx.strokeStyle = palette.primary;
-            ctx.lineWidth = 1.0;
-            ctx.globalAlpha = 0.15 + (audio.bass || 0) * 0.15;
-            ctx.beginPath();
-            ctx.arc(catCenterX, catCenterY, auraR, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.strokeStyle = palette.accent;
-            ctx.lineWidth = 0.8;
-            ctx.globalAlpha = 0.1 + (audio.mid || 0) * 0.1;
-            ctx.beginPath();
-            ctx.arc(catCenterX, catCenterY, auraR * 0.6, 0, Math.PI * 2);
-            ctx.stroke();
         }
 
         ctx.restore();

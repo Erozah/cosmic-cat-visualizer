@@ -28,7 +28,7 @@
             z-index: 0;
             display: block;
         }
-        /* Glassmorphic Test Bench Bar */
+        /* Top Audio Source Bar */
         .demo-bar {
             position: fixed;
             top: 20px;
@@ -83,17 +83,64 @@
         #audio-file-input {
             display: none;
         }
+
+        /* The 2 discrete bottom buttons (mirroring Spotify playbar buttons) */
+        .bottom-controls-bar {
+            position: fixed;
+            bottom: 24px;
+            right: 28px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(12, 10, 26, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 8px 14px;
+            border-radius: 30px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+        }
+
+        .action-icon-btn {
+            background: transparent;
+            border: 0;
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+        .action-icon-btn:hover {
+            color: #00f0ff;
+            transform: scale(1.15);
+            filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+        }
+        .action-icon-btn.active {
+            color: #00f0ff;
+            filter: drop-shadow(0 0 8px #00f0ff);
+        }
+        .action-icon-btn.inactive {
+            color: #666666;
+            filter: none;
+        }
+
         /* Shortcut Guide Toast */
         .shortcut-legend {
             position: fixed;
-            bottom: 20px;
+            bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
             font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
-            background: rgba(10, 8, 20, 0.7);
-            padding: 5px 14px;
+            background: rgba(10, 8, 20, 0.75);
+            padding: 6px 16px;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(8px);
@@ -111,9 +158,9 @@
 <body>
     <canvas id="cyber-cat-canvas"></canvas>
 
-    <!-- Top Demo Controls -->
+    <!-- Top Audio Source Selection -->
     <div class="demo-bar">
-        <button id="btn-synth" class="demo-btn" title="Activer la musique synthétisée intégrée">
+        <button id="btn-synth" class="demo-btn" title="Activer la musique synthétisée intégrée (124 BPM)">
             🎵 Beat Synth
         </button>
         <button id="btn-mic" class="demo-btn" title="Connecter le microphone pour l'audio-réactivité">
@@ -123,28 +170,29 @@
             📂 Fichier
         </button>
         <input type="file" id="audio-file-input" accept="audio/*">
+    </div>
 
-        <div class="demo-separator"></div>
-
-        <button id="btn-cat" class="demo-btn" title="Alterner Modèle (C)">
-            🐱 Modèle
+    <!-- The 2 Discrete Floating Buttons (On/Off & Settings) -->
+    <div class="bottom-controls-bar">
+        <!-- 1. Bouton On/Off -->
+        <button id="cosmic-cat-toggle-btn" class="action-icon-btn active" title="Visualiseur Chat : Activer / Désactiver">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 2C9.5 2 7.4 3.8 7 6.2 4.6 7.8 3 10.7 3 14c0 5 4 9 9 9s9-4 9-9c0-3.3-1.6-6.2-4-7.8C16.6 3.8 14.5 2 12 2zm-3.2 1.8l1.6 2.4c-.6.4-1.1.9-1.4 1.5L6.5 6.6l2.3-2.8zm6.4 0l2.3 2.8-2.5 1.1c-.3-.6-.8-1.1-1.4-1.5l1.6-2.4z"/>
+            </svg>
         </button>
-        <button id="btn-bg" class="demo-btn" title="Alterner Arrière-plan (G)">
-            ✨ Décor
-        </button>
-        <button id="btn-theme" class="demo-btn" title="Alterner Palette (T)">
-            🎨 Thème
-        </button>
-        <button id="btn-fs" class="demo-btn" title="Plein Écran (F)">
-            ⛶
+        <!-- 2. Bouton Paramètres ⚙️ -->
+        <button id="cosmic-cat-settings-btn" class="action-icon-btn" title="Paramètres du Visualiseur (Modèle, Couleurs, Effets)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
         </button>
     </div>
 
     <div class="shortcut-legend">
-        Raccourcis : <kbd>C</kbd> Modèle &nbsp;|&nbsp; <kbd>G</kbd> Décor &nbsp;|&nbsp; <kbd>T</kbd> Thème &nbsp;|&nbsp; <kbd>A</kbd> Pause/Figer &nbsp;|&nbsp; <kbd>F</kbd> Plein Écran
+        Raccourcis : <kbd>A</kbd> On/Off &nbsp;|&nbsp; <kbd>C</kbd> Modèle &nbsp;|&nbsp; <kbd>T</kbd> Couleur &nbsp;|&nbsp; <kbd>F</kbd> Plein Écran
     </div>
 
-    <!-- Bundle Script -->
+    <!-- Compiled Bundle Script -->
     <script src="dist/cat-visualizer.js"></script>
 
     <script>
@@ -155,7 +203,23 @@
             const engine = new VisualizerEngine(canvas);
             window.engine = engine;
 
-            // Simple Web Audio 124 BPM Synth Loop for instant out-of-the-box demo
+            // Wire up the 2 buttons
+            const toggleBtn = document.getElementById('cosmic-cat-toggle-btn');
+            const settingsBtn = document.getElementById('cosmic-cat-settings-btn');
+
+            toggleBtn.addEventListener('click', () => {
+                engine.toggleActive();
+                toggleBtn.classList.toggle('active', engine.isActive);
+                toggleBtn.classList.toggle('inactive', !engine.isActive);
+            });
+
+            settingsBtn.addEventListener('click', () => {
+                if (typeof window.toggleSettingsDropdown === 'function') {
+                    window.toggleSettingsDropdown(() => engine);
+                }
+            });
+
+            // Web Audio 124 BPM Synth Loop for instant out-of-the-box demo
             let synthContext = null;
             let synthInterval = null;
             let isSynthRunning = false;
@@ -238,7 +302,6 @@
                 document.getElementById('btn-synth').classList.remove('active');
             }
 
-            // Button Event Listeners
             document.getElementById('btn-synth').addEventListener('click', startSynth);
 
             document.getElementById('btn-mic').addEventListener('click', async () => {
@@ -262,25 +325,6 @@
                 audioEl.play();
                 engine.audio.connectLiveSource(audioEl);
                 document.getElementById('btn-file').classList.add('active');
-            });
-
-            document.getElementById('btn-cat').addEventListener('click', () => {
-                const cur = engine.nextCat();
-                document.getElementById('btn-cat').textContent = cur === 'cyber' ? '🐱 Cyber Cat' : '🌌 Cosmic Cat';
-            });
-
-            document.getElementById('btn-bg').addEventListener('click', () => {
-                const cur = engine.nextBackground();
-                const map = { stars: '✨ Étoiles', grid: '🌐 Grille', fractals: '☸️ Fractales', nebula: '🌌 Nébuleuse', minimal: '🌑 Minimal' };
-                document.getElementById('btn-bg').textContent = map[cur] || cur;
-            });
-
-            document.getElementById('btn-theme').addEventListener('click', () => {
-                engine.nextPalette();
-            });
-
-            document.getElementById('btn-fs').addEventListener('click', () => {
-                engine.toggleFullscreen();
             });
         });
     </script>

@@ -1,34 +1,31 @@
-// src/core/uiSync.js - Synchronizing visualizer state with DOM UI elements (Legacy Buttons & HUD)
+// src/core/uiSync.js - Synchronizing visualizer state with the 2 playbar buttons & settings dropdown
 
 function updateVisualizerUI(engine) {
     const curPalette = engine.paletteManager.active;
 
-    // 1. Playbar Cat Button (Legacy Appearance)
-    const playbarBtn = document.getElementById("cosmic-cat-playbar-btn");
-    if (playbarBtn) {
+    // 1. Bouton On/Off (Chat)
+    const toggleBtn = document.getElementById("cosmic-cat-toggle-btn");
+    if (toggleBtn) {
         if (engine.isForeground) {
-            playbarBtn.classList.add("active");
-            playbarBtn.style.color = curPalette.primary;
-            playbarBtn.title = `Cosmic Cat : ACTIF (Clic: Pause | Clic-droit: Thème | Double-clic: Modèle [${engine.activeCat}])`;
+            toggleBtn.classList.add("active");
+            toggleBtn.style.color = curPalette.primary;
+            toggleBtn.title = `Visualiseur Chat : ACTIF (Clic pour désactiver | Modèle : ${engine.activeCat === 'cyber' ? 'Cyber Cat' : 'Cosmic Cat'})`;
         } else {
-            playbarBtn.classList.remove("active");
-            playbarBtn.style.color = "var(--spice-subtext, rgba(255,255,255,0.6))";
-            playbarBtn.title = "Cosmic Cat : INACTIF (Clic pour Activer)";
+            toggleBtn.classList.remove("active");
+            toggleBtn.style.color = "var(--spice-subtext, rgba(255,255,255,0.6))";
+            toggleBtn.title = "Visualiseur Chat : INACTIF (Clic pour activer)";
         }
     }
 
-    // 2. Playbar Theme Button (Legacy Appearance)
-    const themeBtn = document.getElementById("cosmic-cat-theme-btn");
-    if (themeBtn) {
-        themeBtn.style.color = curPalette.primary;
-        themeBtn.title = `Thème : ${curPalette.name} (Clic: Changer de couleur | Clic-droit: Décor)`;
+    // 2. Bouton Paramètres ⚙️
+    const settingsBtn = document.getElementById("cosmic-cat-settings-btn");
+    if (settingsBtn) {
+        settingsBtn.style.color = engine.isForeground ? curPalette.primary : "var(--spice-subtext, rgba(255,255,255,0.6))";
+        settingsBtn.title = "Paramètres du Visualiseur (Modèle, Thème, Effets)";
     }
 
-    // 3. HUD status & swatches
-    updateHudThemeSwatch(curPalette.id);
-
-    const hud = document.getElementById("cosmic-cat-theme-hud");
-    if (hud) {
-        hud.style.display = engine.isForeground ? "flex" : "none";
+    // 3. Mise à jour de l'interface du menu déroulant
+    if (typeof updateSettingsDropdownUI === "function") {
+        updateSettingsDropdownUI(engine);
     }
 }

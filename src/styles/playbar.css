@@ -1,27 +1,39 @@
-/* src/styles/playbar.css - Playbar buttons styling as in legacy */
+/* src/styles/playbar.css - The 2 discrete playbar buttons: On/Off & Settings Gear */
 
-#cosmic-cat-playbar-btn,
-#cosmic-cat-theme-btn {
-    transition: all 0.2s ease !important;
+.cosmic-playbar-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     position: relative !important;
     cursor: pointer !important;
     background: transparent !important;
     border: 0 !important;
     padding: 0 4px !important;
-    color: var(--spice-subtext, rgba(255, 255, 255, 0.7)) !important;
+    margin: 0 2px !important;
+    color: var(--spice-subtext, rgba(255, 255, 255, 0.65)) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    outline: none !important;
 }
 
-#cosmic-cat-playbar-btn.active,
-#cosmic-cat-theme-btn:hover {
+.cosmic-playbar-btn:hover {
+    color: #00f0ff !important;
+    transform: scale(1.15) !important;
+    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6)) !important;
+}
+
+#cosmic-cat-toggle-btn.active {
+    color: #00f0ff !important;
     transform: scale(1.1) !important;
-    filter: drop-shadow(0 0 6px currentColor) !important;
+    filter: drop-shadow(0 0 8px currentColor) !important;
 }
 
-#cosmic-cat-playbar-btn:not(.active) {
-    opacity: 0.6 !important;
+#cosmic-cat-toggle-btn:not(.active) {
+    opacity: 0.55 !important;
+    filter: none !important;
+}
+
+#cosmic-cat-settings-btn:hover {
+    transform: rotate(30deg) scale(1.15) !important;
 }
 
 /* Toast & Notification Stacking Fix */

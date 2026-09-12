@@ -20,10 +20,10 @@
             window.catVisualizerEngine = engineInstance;
         }
 
-        // 3. Mount UI Controls (Legacy Playbar Buttons & Theme HUD)
+        // 3. Mount UI Controls (The 2 Playbar Buttons & Settings Dropdown)
         mountPlaybarButtons(getEngine);
         initPlaybarObserver(getEngine);
-        mountThemeHud(getEngine);
+        mountSettingsDropdown(getEngine);
 
         // 4. Click canvas in fullscreen to exit
         if (canvas) {

@@ -1,4 +1,4 @@
-// src/core/renderPipeline.js - Frame rendering pipeline for backgrounds and cat models (SOLID LSP/OCP)
+// src/core/renderPipeline.js - Frame rendering pipeline for composable backgrounds and cat models
 
 function renderVisualizerFrame(engine, dt, isStatic = false) {
     const ctx = engine.ctx;
@@ -7,7 +7,7 @@ function renderVisualizerFrame(engine, dt, isStatic = false) {
     if (!isStatic) {
         engine.audio.update(dt);
         engine.env.update(dt, engine.width, engine.height, engine.audio, palette, engine.catCenterX, engine.catCenterY);
-        if (engine.env.mode === 'fractals') {
+        if (engine.env.effects && engine.env.effects.fractals) {
             engine.cosmicFractals.update(dt, engine.liveTime, engine.audio, engine.audio.isPlaying);
         }
     }
@@ -15,8 +15,18 @@ function renderVisualizerFrame(engine, dt, isStatic = false) {
     ctx.save();
     ctx.setTransform(engine.dpr, 0, 0, engine.dpr, 0, 0);
 
-    // 1. Render Background
-    engine.env.render(ctx, engine.width, engine.height, engine.liveTime, engine.audio, palette, engine.catCenterX, engine.catCenterY, engine.cosmicFractals);
+    // 1. Render Background Composable Layers
+    engine.env.render(
+        ctx,
+        engine.width,
+        engine.height,
+        engine.liveTime,
+        engine.audio,
+        palette,
+        engine.catCenterX,
+        engine.catCenterY,
+        engine.cosmicFractals
+    );
 
     // 2. Polymorphic Model Rendering (Liskov Substitution Principle)
     const model = engine.models[engine.activeCat] || engine.models.cyber;
@@ -34,7 +44,7 @@ function renderVisualizerFrame(engine, dt, isStatic = false) {
         engine.liveTime,
         engine.audio,
         palette,
-        engine.env.mode,
+        engine.env.effects,
         engine.width,
         engine.height
     );

@@ -18,14 +18,21 @@ class VisualizerEngine {
             cosmic: new CosmicCat()
         };
 
-        // Model & background selection
-        this.activeCat = 'cyber'; // 'cyber' | 'cosmic'
-        this.activeBg = 'stars';  // 'stars' | 'grid' | 'fractals' | 'nebula' | 'minimal'
+        // Saved or default model selection (Exclusive selection)
+        const savedModel = (typeof localStorage !== 'undefined') ? localStorage.getItem('cosmic-cat-model') : null;
+        this.activeCat = (savedModel && this.models[savedModel]) ? savedModel : 'cyber';
 
-        // State: Active/Foreground vs Deactivated/Frozen Background
-        this.isForeground = true;
-        this.isFrozen = false;
-        this.loopRunning = true;
+        // Saved theme
+        const savedTheme = (typeof localStorage !== 'undefined') ? localStorage.getItem('cosmic-cat-theme') : null;
+        if (savedTheme) {
+            this.paletteManager.setPalette(savedTheme, true);
+        }
+
+        // State: Active vs Frozen/Paused
+        const savedActive = (typeof localStorage !== 'undefined') ? localStorage.getItem('cosmic-cat-bg-enabled') !== 'false' : true;
+        this.isForeground = savedActive;
+        this.isFrozen = !savedActive;
+        this.loopRunning = savedActive;
         this.isFullscreen = false;
 
         this.liveTime = 0;
@@ -37,14 +44,18 @@ class VisualizerEngine {
         this.catCenterY = this.height * 0.52;
 
         if (typeof document !== 'undefined' && document.body) {
-            document.body.classList.add('cyber-cat-visualizer-active');
+            document.body.classList.toggle('cyber-cat-visualizer-active', this.isForeground);
         }
 
         setupResizeHandling(this);
         setupVisualizerKeybindings(this);
 
         this.loop = this.loop.bind(this);
-        requestAnimationFrame(this.loop);
+        if (this.loopRunning) {
+            requestAnimationFrame(this.loop);
+        } else {
+            this.renderFrame(0.016, true);
+        }
     }
 
     syncBounds() {
@@ -55,6 +66,10 @@ class VisualizerEngine {
         const nextActive = typeof forceState === 'boolean' ? forceState : !this.isForeground;
         this.isForeground = nextActive;
         this.isFrozen = !nextActive;
+
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cosmic-cat-bg-enabled', this.isForeground ? 'true' : 'false');
+        }
 
         if (typeof document !== 'undefined' && document.body) {
             document.body.classList.toggle('cyber-cat-visualizer-active', this.isForeground);
@@ -78,15 +93,10 @@ class VisualizerEngine {
         return this.activeCat;
     }
 
-    get currentBg() {
-        return this.activeBg;
-    }
-
     get isActive() {
         return this.isForeground;
     }
 
-    // Model getters for backward compatibility
     get cyberCat() {
         return this.models.cyber;
     }
@@ -95,54 +105,62 @@ class VisualizerEngine {
         return this.models.cosmic;
     }
 
+    // Exclusive Cat Model Selection (Activating one disables the other)
     setCat(cat) {
         if (this.models[cat]) {
             this.activeCat = cat;
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('cosmic-cat-model', cat);
+            }
             this.updateAllUI();
             if (this.isFrozen) this.renderFrame(0.016, true);
         }
         return this.activeCat;
     }
 
-    setBackground(mode) {
-        this.env.setMode(mode);
-        this.activeBg = this.env.mode;
-        this.updateAllUI();
-        if (this.isFrozen) this.renderFrame(0.016, true);
-        return this.activeBg;
-    }
-
     nextCat() {
         const keys = Object.keys(this.models);
         const idx = keys.indexOf(this.activeCat);
-        this.activeCat = keys[(idx + 1) % keys.length];
-        this.updateAllUI();
-        if (this.isFrozen) this.renderFrame(0.016, true);
-        return this.activeCat;
+        return this.setCat(keys[(idx + 1) % keys.length]);
     }
 
-    nextBackground() {
-        this.activeBg = this.env.nextMode();
+    // Exclusive Palette Selection (Activating one disables the previous)
+    setPalette(id) {
+        this.paletteManager.setPalette(id, true);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cosmic-cat-theme', id);
+        }
         this.updateAllUI();
         if (this.isFrozen) this.renderFrame(0.016, true);
-        return this.activeBg;
     }
 
     nextPalette() {
         const p = this.paletteManager.nextPalette();
-        this.updateHudSwatch();
+        if (typeof localStorage !== 'undefined' && p && p.id) {
+            localStorage.setItem('cosmic-cat-theme', p.id);
+        }
+        this.updateAllUI();
         if (this.isFrozen) this.renderFrame(0.016, true);
         return p;
     }
 
-    setPalette(id) {
-        this.paletteManager.setPalette(id, true);
-        this.updateHudSwatch();
+    // Independent Effect Toggles (Fractals, Stars, Nebula, Grid, Shockwaves, Deck)
+    toggleEffect(name) {
+        const res = this.env.toggleEffect(name);
+        this.updateAllUI();
         if (this.isFrozen) this.renderFrame(0.016, true);
+        return res;
     }
 
-    updateHudSwatch() {
-        updateHudThemeSwatch(this.paletteManager.active.id);
+    setEffect(name, enabled) {
+        const res = this.env.setEffect(name, enabled);
+        this.updateAllUI();
+        if (this.isFrozen) this.renderFrame(0.016, true);
+        return res;
+    }
+
+    getEffect(name) {
+        return this.env.getEffect(name);
     }
 
     updateAllUI() {

@@ -40,13 +40,14 @@ class CosmicCat {
         this.lastDeckY = deckY;
     }
 
-    render(ctx, cx, cy, scale, time, audio, palette, bgMode = 'stars', width = 800, height = 600) {
+    render(ctx, cx, cy, scale, time, audio, palette, effects = null, width = 800, height = 600) {
         const w = width || window.innerWidth || 800;
         const h = height || window.innerHeight || 600;
         const deckY = this.lastDeckY || (h * 0.86);
 
-        // 1. Render wooden deck unless on cyber synthwave grid
-        if (bgMode !== 'grid') {
+        // 1. Render wooden deck unless disabled or on cyber synthwave grid
+        const showDeck = (!effects || effects.deck !== false) && (!effects || !effects.grid);
+        if (showDeck) {
             this.deck.render(ctx, w, h, deckY, palette, audio);
         }
 

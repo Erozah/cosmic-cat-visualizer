@@ -24,7 +24,7 @@ CSS_MODULES = [
     "styles/canvas.css",
     "styles/transparency.css",
     "styles/mainView.css",
-    "styles/hud.css",
+    "styles/dropdown.css",
     "styles/fullscreen.css",
     "styles/playbar.css",
 ]
@@ -42,7 +42,7 @@ JS_MODULES = [
     "audio/WebAudioBridge.js",
     "audio/AudioEngine.js",
 
-    # 3. Switchable Backgrounds (Stars, Nebula, Shockwaves, Grid, Fractals)
+    # 3. Composable Backgrounds & Effects
     "backgrounds/CosmicStar.js",
     "backgrounds/CosmicNebula.js",
     "backgrounds/Shockwave.js",
@@ -86,10 +86,10 @@ JS_MODULES = [
     "core/renderPipeline.js",
     "core/VisualizerEngine.js",
 
-    # 7. UI Components & Extension Bootstrap (Legacy Buttons & HUD)
+    # 7. UI Components: The 2 Buttons & Settings Dropdown
     "ui/canvasMount.js",
+    "ui/settingsDropdown.js",
     "ui/playbarButtons.js",
-    "ui/themeHud.js",
     "ui/extension.js",
 ]
 
@@ -111,7 +111,7 @@ js_contents = [read_src(js_mod) for js_mod in JS_MODULES]
 bundle_parts = [
     "// NAME: Cyber & Cosmic Cat Visualizer",
     "// AUTHOR: Erozah",
-    "// DESCRIPTION: Modular dual-model (Cyberpunk & Cosmic) visualizer with 5 switchable backgrounds.",
+    "// DESCRIPTION: Modular visualizer with 2 discrete buttons (On/Off & Settings Dropdown), exclusive models/palettes, and composable independent background effects.",
     "",
     "(function() {",
     inline_style,
@@ -129,6 +129,7 @@ for mod_path, code in zip(JS_MODULES, js_contents):
 bundle_parts.extend([
     "if (typeof window !== 'undefined') {",
     "    window.VisualizerEngine = VisualizerEngine;",
+    "    window.toggleSettingsDropdown = toggleSettingsDropdown;",
     "}",
     "",
     "// --- Module: ui/extension.js ---",

@@ -1,7 +1,7 @@
-// src/ui/playbarButtons.js - Injects legacy playbar buttons into Spotify extra controls
+// src/ui/playbarButtons.js - Injects the 2 buttons: 1. On/Off toggle, 2. Settings dropdown trigger
 
 const CatSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C9.5 2 7.4 3.8 7 6.2 4.6 7.8 3 10.7 3 14c0 5 4 9 9 9s9-4 9-9c0-3.3-1.6-6.2-4-7.8C16.6 3.8 14.5 2 12 2zm-3.2 1.8l1.6 2.4c-.6.4-1.1.9-1.4 1.5L6.5 6.6l2.3-2.8zm6.4 0l2.3 2.8-2.5 1.1c-.3-.6-.8-1.1-1.4-1.5l1.6-2.4z"/></svg>`;
-const PaletteSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.41 3.59 8 8 8 0.55 0 1-0.45 1-1 0-0.24-0.09-0.47-0.26-0.64-0.16-0.18-0.24-0.41-0.24-0.66 0-0.55 0.45-1 1-1h1.5c4.41 0 8-3.59 8-8 0-5.52-4.48-10-10-10zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 8 6.5 8 8 8.67 8 9.5 7.33 11 6.5 11zm3-4C8.67 7 8 6.33 8 5.5S8.67 4 9.5 4s1.5 0.67 1.5 1.5S10.33 7 9.5 7zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 4 14.5 4s1.5 0.67 1.5 1.5S15.33 7 14.5 7zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 8 17.5 8s1.5 0.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>`;
+const GearSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
 
 let isInjectingPlaybar = false;
 
@@ -16,65 +16,43 @@ function mountPlaybarButtons(engineGetter) {
             return;
         }
 
-        // 1. Playbar Cat Button (Legacy)
-        if (!document.getElementById("cosmic-cat-playbar-btn")) {
-            const btn = document.createElement("button");
-            btn.id = "cosmic-cat-playbar-btn";
-            btn.className = "main-genericButton-button";
-            btn.setAttribute("aria-label", "Visualiseur Chat");
-            btn.innerHTML = CatSvg;
+        // 1. Bouton On/Off (CatSvg)
+        if (!document.getElementById("cosmic-cat-toggle-btn")) {
+            const toggleBtn = document.createElement("button");
+            toggleBtn.id = "cosmic-cat-toggle-btn";
+            toggleBtn.className = "main-genericButton-button cosmic-playbar-btn";
+            toggleBtn.setAttribute("aria-label", "Visualiseur Chat : Activer / Désactiver");
+            toggleBtn.innerHTML = CatSvg;
 
-            btn.addEventListener("click", (e) => {
+            toggleBtn.addEventListener("click", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const eng = engineGetter();
                 if (eng) eng.toggleActive();
             });
 
-            btn.addEventListener("contextmenu", (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const eng = engineGetter();
-                if (eng) eng.nextPalette();
-            });
-
-            btn.addEventListener("dblclick", (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const eng = engineGetter();
-                if (eng) eng.nextCat();
-            });
-
-            extraControls.insertBefore(btn, extraControls.firstChild);
+            extraControls.insertBefore(toggleBtn, extraControls.firstChild);
         }
 
-        // 2. Playbar Palette Button (Legacy)
-        if (!document.getElementById("cosmic-cat-theme-btn")) {
-            const themeBtn = document.createElement("button");
-            themeBtn.id = "cosmic-cat-theme-btn";
-            themeBtn.className = "main-genericButton-button";
-            themeBtn.setAttribute("aria-label", "Changer le Thème");
-            themeBtn.innerHTML = PaletteSvg;
+        // 2. Bouton Paramètres ⚙️ (GearSvg) qui ouvre le menu déroulant
+        if (!document.getElementById("cosmic-cat-settings-btn")) {
+            const settingsBtn = document.createElement("button");
+            settingsBtn.id = "cosmic-cat-settings-btn";
+            settingsBtn.className = "main-genericButton-button cosmic-playbar-btn";
+            settingsBtn.setAttribute("aria-label", "Paramètres du Visualiseur");
+            settingsBtn.innerHTML = GearSvg;
 
-            themeBtn.addEventListener("click", (e) => {
+            settingsBtn.addEventListener("click", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const eng = engineGetter();
-                if (eng) eng.nextPalette();
+                toggleSettingsDropdown(engineGetter);
             });
 
-            themeBtn.addEventListener("contextmenu", (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const eng = engineGetter();
-                if (eng) eng.nextBackground();
-            });
-
-            const catBtn = document.getElementById("cosmic-cat-playbar-btn");
-            if (catBtn && catBtn.nextSibling) {
-                extraControls.insertBefore(themeBtn, catBtn.nextSibling);
+            const toggleBtn = document.getElementById("cosmic-cat-toggle-btn");
+            if (toggleBtn && toggleBtn.nextSibling) {
+                extraControls.insertBefore(settingsBtn, toggleBtn.nextSibling);
             } else {
-                extraControls.appendChild(themeBtn);
+                extraControls.appendChild(settingsBtn);
             }
         }
     } finally {
@@ -87,7 +65,7 @@ function initPlaybarObserver(engineGetter) {
     const playbar = document.querySelector(".Root__now-playing-bar, .main-nowPlayingBar-container");
     if (playbar) {
         const obs = new MutationObserver(() => {
-            if (!document.getElementById("cosmic-cat-playbar-btn")) {
+            if (!document.getElementById("cosmic-cat-toggle-btn") || !document.getElementById("cosmic-cat-settings-btn")) {
                 mountPlaybarButtons(engineGetter);
             }
         });
